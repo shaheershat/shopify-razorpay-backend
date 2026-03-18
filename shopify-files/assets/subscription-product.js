@@ -1,10 +1,20 @@
 // Subscription Product JavaScript
+console.log('🔥 subscription-product.js loaded!');
+
 class SubscriptionProduct {
   constructor() {
+    console.log('🔥 SubscriptionProduct constructor called!');
+    
     this.apiBase = window.subscriptionConfig?.apiBase || 'https://shopify-razorpay-backend-production.up.railway.app';
     this.razorpayKeyId = window.subscriptionConfig?.razorpay_key_id || 'rzp_live_SSfTeiwakEqpU0';
     this.customerEmail = window.subscriptionConfig?.customerEmail;
     this.customerPhone = window.subscriptionConfig?.customerPhone;
+    
+    console.log('🔥 Config:', {
+      apiBase: this.apiBase,
+      razorpayKeyId: this.razorpayKeyId,
+      customerEmail: this.customerEmail
+    });
     
     this.selectedPlan = null;
     this.cart = [];
@@ -16,6 +26,8 @@ class SubscriptionProduct {
   }
   
   checkRazorpaySDK() {
+    console.log('🔥 Checking Razorpay SDK...');
+    
     if (typeof Razorpay === 'undefined') {
       console.error('❌ Razorpay SDK not loaded');
       this.showNotification('Payment gateway not available', 'error');
@@ -26,9 +38,13 @@ class SubscriptionProduct {
   }
   
   init() {
+    console.log('🔥 Initializing SubscriptionProduct...');
+    
     this.initializeSubscriptionOptions();
     this.initializeButtons();
     this.updateButtonStates();
+    
+    console.log('🔥 SubscriptionProduct initialized!');
   }
   
   initializeSubscriptionOptions() {
@@ -62,12 +78,19 @@ class SubscriptionProduct {
   }
   
   initializeButtons() {
+    console.log('🔥 Initializing buttons...');
+    
     const subscribeBtn = document.getElementById('subscribeNowBtn');
+    console.log('🔥 Subscribe button found:', subscribeBtn);
+    
     if (subscribeBtn) {
       subscribeBtn.addEventListener('click', () => {
-        console.log('Subscribe button clicked!');
+        console.log('🔥 Subscribe button clicked!');
         this.createSubscription();
       });
+      console.log('🔥 Subscribe button event listener added');
+    } else {
+      console.error('🔥 Subscribe button not found!');
     }
     
     const checkoutBtn = document.getElementById('checkoutBtn');
@@ -77,8 +100,13 @@ class SubscriptionProduct {
     const emailInput = document.getElementById('customerEmail');
     const phoneInput = document.getElementById('customerPhone');
     
+    console.log('🔥 Email input found:', emailInput);
+    console.log('🔥 Phone input found:', phoneInput);
+    
     if (emailInput) emailInput.addEventListener('input', () => this.updateButtonStates());
     if (phoneInput) phoneInput.addEventListener('input', () => this.updateButtonStates());
+    
+    console.log('🔥 Buttons initialized!');
   }
   
   updateButtonStates() {
