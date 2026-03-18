@@ -229,8 +229,28 @@ class SubscriptionProduct {
       selectedPlan: this.selectedPlan
     });
 
+    // Force use new key and override any existing Razorpay instance
+    if (typeof Razorpay !== 'undefined') {
+      // Clear any existing Magic Checkout configuration
+      window.Razorpay = null;
+      
+      // Reload Razorpay SDK with new key
+      const script = document.createElement('script');
+      script.src = 'https://checkout.razorpay.com/v1/razorpay.js';
+      script.async = true;
+      script.onload = () => {
+        console.log('🔄 Razorpay SDK reloaded with new key');
+        this.initializeRazorpayCheckout(orderId, subscriptionId, keyId, amount);
+      };
+      document.head.appendChild(script);
+    } else {
+      this.initializeRazorpayCheckout(orderId, subscriptionId, keyId, amount);
+    }
+  }
+  
+  initializeRazorpayCheckout(orderId, subscriptionId, keyId, amount) {
     const options = {
-      key: keyId,
+      key: 'rzp_live_SSfTeiwakEqpU0', // Force use new key
       order_id: orderId,
       name: 'Luvwish Subscription',
       description: `${this.selectedPlan.name} - ${this.selectedPlan.description}`,
@@ -249,7 +269,8 @@ class SubscriptionProduct {
           this.showNotification('Payment cancelled', 'warning');
         },
         escape: true,
-        backdropclose: false
+        backdropclose: false,
+        handleback: true
       },
       notes: {
         subscription_type: 'mandate',
@@ -261,14 +282,39 @@ class SubscriptionProduct {
       },
       theme: {
         color: '#3399cc'
+      },
+      prefill: {
+        email: this.customerEmail || '',
+        contact: this.customerPhone || ''
+      },
+      config: {
+        display: {
+          blocks: {
+            banks: {
+              name: 'Pay via Banks',
+              instruments: [
+                {
+                  method: 'upi',
+                  flows: ['collect', 'intent'],
+                  entities: ['googlepay', 'phonepe', 'paytm']
+                }
+              ]
+            }
+          }
+        }
       }
     };
 
     console.log('🔧 Razorpay options:', options);
     
-    const rzp = new Razorpay(options);
-    console.log('🚀 Opening Razorpay payment modal...');
-    rzp.open();
+    try {
+      const rzp = new Razorpay(options);
+      console.log('🚀 Opening Razorpay payment modal...');
+      rzp.open();
+    } catch (error) {
+      console.error('❌ Error opening Razorpay:', error);
+      this.showNotification('Failed to open payment gateway', 'error');
+    }
   }
   
   async verifyPaymentAndActivateSubscription(paymentId, orderId, signature, subscriptionId) {
