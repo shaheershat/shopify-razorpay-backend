@@ -48,14 +48,28 @@ class SubscriptionProduct {
   }
   
   initializeSubscriptionOptions() {
-    const options = document.querySelectorAll('.subscription-option');
+    console.log('🔥 Initializing subscription options...');
     
-    options.forEach(option => {
-      option.addEventListener('click', () => this.selectPlan(option));
+    const options = document.querySelectorAll('.subscription-option');
+    console.log('🔥 Found subscription options:', options.length);
+    console.log('🔥 Options:', options);
+    
+    options.forEach((option, index) => {
+      console.log(`🔥 Adding click listener to option ${index}:`, option);
+      option.addEventListener('click', () => {
+        console.log(`🔥 Option ${index} clicked!`);
+        this.selectPlan(option);
+      });
     });
+    
+    if (options.length === 0) {
+      console.error('❌ No subscription options found! Check if product has subscription variants with metafields.');
+    }
   }
   
   selectPlan(option) {
+    console.log('🔥 selectPlan called with:', option);
+    
     // Remove previous selection
     document.querySelectorAll('.subscription-option').forEach(opt => {
       opt.classList.remove('border-blue-500', 'bg-blue-50');
@@ -70,8 +84,8 @@ class SubscriptionProduct {
       planId: option.dataset.planId,
       frequency: option.dataset.plan,
       price: parseFloat(option.dataset.price),
-      name: option.querySelector('h4').textContent,
-      description: option.querySelector('.text-gray-600').textContent
+      name: option.querySelector('h4')?.textContent || 'Unknown Plan',
+      description: option.querySelector('.text-gray-600')?.textContent || ''
     };
     
     console.log('🔥 Selected plan:', this.selectedPlan);
