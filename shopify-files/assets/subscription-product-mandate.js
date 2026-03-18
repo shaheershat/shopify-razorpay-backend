@@ -208,8 +208,9 @@ class SubscriptionProduct {
 
       if (result.success) {
         console.log('✅ Subscription created, opening Razorpay subscription checkout...');
+        console.log('💰 Plan amount from backend:', result.amount);
         // Open Razorpay subscription checkout (mandate flow) - bypass Magic Checkout
-        this.openRazorpaySubscriptionCheckout(result.subscription_id, result.key_id);
+        this.openRazorpaySubscriptionCheckout(result.subscription_id, result.key_id, result.amount);
       } else {
         console.error('❌ API error:', result.error);
         this.showNotification(`Failed to create subscription: ${result.error}`, 'error');
@@ -224,15 +225,17 @@ class SubscriptionProduct {
     console.log('💳 Opening Razorpay SUBSCRIPTION checkout (not Magic Checkout):', {
       subscriptionId,
       keyId,
+      amount,
       selectedPlan: this.selectedPlan
     });
 
     // Use SUBSCRIPTION checkout - bypass Magic Checkout completely
-    this.openRazorpaySubscriptionCheckout(subscriptionId, keyId);
+    this.openRazorpaySubscriptionCheckout(subscriptionId, keyId, amount);
   }
   
-  openRazorpaySubscriptionCheckout(subscriptionId, keyId) {
+  openRazorpaySubscriptionCheckout(subscriptionId, keyId, amount) {
     console.log('🚀 Opening pure Razorpay subscription checkout (mandate flow)...');
+    console.log('💰 Using amount from plan:', amount);
     
     // Check if Razorpay is available
     if (typeof Razorpay === 'undefined') {
@@ -248,6 +251,7 @@ class SubscriptionProduct {
       name: 'Luvwish Subscription',
       description: `${this.selectedPlan.name} - ${this.selectedPlan.description}`,
       image: 'https://luvwish.in/cdn/shop/files/Logo_1_250x250.png',
+      amount: amount, // Use actual plan amount from backend
       handler: (response) => {
         console.log('✅ Subscription payment completed:', response);
         
@@ -301,6 +305,7 @@ class SubscriptionProduct {
 
     console.log('🔧 Razorpay SUBSCRIPTION options:', options);
     console.log('🔍 Using subscription_id:', subscriptionId);
+    console.log('💰 Amount:', amount);
     console.log('🚀 Opening SUBSCRIPTION checkout (mandate flow) - NO Magic Checkout!');
     
     try {

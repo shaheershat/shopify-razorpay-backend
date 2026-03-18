@@ -90,6 +90,10 @@ app.post('/api/create-subscription-direct', async (req, res) => {
       });
     }
 
+    // First, fetch the plan details to get the correct amount
+    const plan = await razorpay.plans.fetch(plan_id);
+    console.log('Fetched plan details:', plan);
+
     // Create Razorpay subscription directly (no initial payment - mandate flow)
     const subscription = await razorpay.subscriptions.create({
       plan_id: plan_id,
@@ -111,11 +115,12 @@ app.post('/api/create-subscription-direct', async (req, res) => {
 
     console.log('Direct subscription created:', subscription.id);
 
-    // Return ONLY subscription info for pure subscription checkout (no order)
+    // Return subscription info with correct amount from plan
     res.json({
       success: true,
       subscription_id: subscription.id,
       key_id: process.env.RAZORPAY_KEY_ID,
+      amount: plan.item.amount, // Use actual plan amount
       status: subscription.status,
       message: 'Subscription created - complete mandate to activate'
     });
