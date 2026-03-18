@@ -46,7 +46,7 @@ console.log('🔥 API URL from settings: {{ settings.subscription_api_url | defa
                        data-plan="{{ frequency }}"
                        data-variant-id="{{ variant.id }}"
                        data-plan-id="{{ plan_id }}"
-                       data-price="{{ variant.price | divided_by: 100 }}">
+                       data-price="{{ variant.price }}">
                     <div class="flex justify-between items-center">
                       <div>
                         <h4 class="font-semibold">{{ variant.title }}</h4>

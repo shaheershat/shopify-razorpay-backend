@@ -78,7 +78,8 @@ app.post('/api/create-subscription-direct', async (req, res) => {
       product_id,
       frequency,
       product_title,
-      product_description
+      product_description,
+      amount // This will be in rupees from frontend
     } = req.body;
 
     console.log('Creating direct subscription (mandate flow):', req.body);
@@ -115,12 +116,12 @@ app.post('/api/create-subscription-direct', async (req, res) => {
 
     console.log('Direct subscription created:', subscription.id);
 
-    // Return subscription info with correct amount from plan
+    // Return subscription info with correct amount from plan (convert to paise for frontend)
     res.json({
       success: true,
       subscription_id: subscription.id,
       key_id: process.env.RAZORPAY_KEY_ID,
-      amount: plan.item.amount, // Use actual plan amount
+      amount: plan.item.amount, // Already in paise from Razorpay
       status: subscription.status,
       message: 'Subscription created - complete mandate to activate'
     });

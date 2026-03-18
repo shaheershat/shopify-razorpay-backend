@@ -98,7 +98,7 @@ class SubscriptionProduct {
       variantId: option.dataset.variantId,
       planId: option.dataset.planId,
       frequency: option.dataset.plan,
-      price: parseFloat(option.dataset.price),
+      price: parseFloat(option.dataset.price) / 100, // Convert from cents to rupees
       name: option.querySelector('h4')?.textContent || 'Unknown Plan',
       description: option.querySelector('.text-gray-600')?.textContent || ''
     };
@@ -161,11 +161,11 @@ class SubscriptionProduct {
         return;
       }
 
-      console.log('� Creating subscription with:', {
+      console.log('🚀 Creating subscription with:', {
         planId: this.selectedPlan.planId,
         customerEmail,
         customerPhone,
-        amount: this.selectedPlan.price // Use price from selected plan
+        amount: this.selectedPlan.price // Use price from selected plan (in rupees)
       });
 
       // Show loading
@@ -184,7 +184,8 @@ class SubscriptionProduct {
           product_id: this.selectedPlan.variantId,
           frequency: this.selectedPlan.frequency,
           product_title: this.selectedPlan.name,
-          product_description: this.selectedPlan.description
+          product_description: this.selectedPlan.description,
+          amount: this.selectedPlan.price // Send amount in rupees
         })
       });
 
