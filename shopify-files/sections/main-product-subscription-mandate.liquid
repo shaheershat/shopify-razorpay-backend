@@ -1,6 +1,6 @@
 {{ 'subscription-product.css' | asset_url | stylesheet_tag }}
 
-<!-- Load Razorpay SDK (specific version to avoid cache) -->
+<!-- Load Razorpay SDK -->
 <script src="https://checkout.razorpay.com/v1/razorpay.js"></script>
 
 <!-- Initialize with correct key -->
@@ -11,11 +11,11 @@
   }
 </script>
 
-{{ 'subscription-product.js' | asset_url | script_tag }}
+{{ 'subscription-product-mandate.js' | asset_url | script_tag }}
 
 <!-- Debug Info -->
 <script>
-console.log('🔥 Template loaded!');
+console.log('🔥 Mandate Template loaded!');
 console.log('🔥 Razorpay Key from settings: {{ settings.razorpay_key_id | default: "rzp_live_SSfTeiwakEqpU0" }}');
 console.log('🔥 API URL from settings: {{ settings.subscription_api_url | default: "https://shopify-razorpay-backend-production.up.railway.app" }}');
 </script>
@@ -83,8 +83,19 @@ console.log('🔥 API URL from settings: {{ settings.subscription_api_url | defa
         <!-- Action Buttons -->
         <div class="flex gap-3">
           <button id="subscribeNowBtn" class="flex-1 bg-blue-600 text-white py-3 rounded-lg font-semibold hover:bg-blue-700 transition-colors disabled:bg-gray-400" disabled>
-            Subscribe with Auto-pay
+            Subscribe with Auto-pay (Mandate)
           </button>
+        </div>
+        
+        <!-- Info Note -->
+        <div class="mt-4 p-4 bg-blue-50 rounded-lg">
+          <p class="text-sm text-blue-800">
+            <strong>💡 How Auto-pay works:</strong><br>
+            1. Click "Subscribe with Auto-pay" to set up automatic payments<br>
+            2. Complete the one-time authorization with Razorpay<br>
+            3. Future payments will be automatically deducted<br>
+            4. You can pause/resume/cancel anytime
+          </p>
         </div>
       </div>
     </div>
@@ -98,13 +109,13 @@ console.log('🔥 API URL from settings: {{ settings.subscription_api_url | defa
     razorpay_key_id: '{{ settings.razorpay_key_id | default: "rzp_live_SSfTeiwakEqpU0" }}',
     customerId: {%- if customer -%}'{{ customer.id }}'{%- else -%}null{%- endif -%},
     customerEmail: {%- if customer -%}'{{ customer.email }}'{%- else -%}null{%- endif -%},
-    customerPhone: {%- if customer.phone -%}'{{ customer.phone }}'{%- else -%}null{%- endif -%}
+    customerPhone: {%- if customer -%}'{{ customer.phone }}'{%- else -%}null{%- endif -%}
   };
 </script>
 
 {% schema %}
 {
-  "name": "Subscription Product",
+  "name": "Subscription Product Mandate",
   "settings": [
     {
       "type": "checkbox",

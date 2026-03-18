@@ -68,7 +68,7 @@ app.post('/api/create-razorpay-order', async (req, res) => {
   }
 });
 
-// Create Direct Subscription (Bypass Shopify Checkout)
+// Create Direct Subscription (Bypass Shopify Checkout) - For Mandate Flow
 app.post('/api/create-subscription-direct', async (req, res) => {
   try {
     const {
@@ -81,7 +81,7 @@ app.post('/api/create-subscription-direct', async (req, res) => {
       product_description
     } = req.body;
 
-    console.log('Creating direct subscription:', req.body);
+    console.log('Creating direct subscription (mandate flow):', req.body);
 
     if (!plan_id || !customer_email) {
       return res.status(400).json({ 
@@ -90,7 +90,7 @@ app.post('/api/create-subscription-direct', async (req, res) => {
       });
     }
 
-    // Create Razorpay subscription directly (no initial payment)
+    // Create Razorpay subscription directly (no initial payment - mandate flow)
     const subscription = await razorpay.subscriptions.create({
       plan_id: plan_id,
       customer_notify: 1,
@@ -374,37 +374,50 @@ app.post('/api/subscriptions/cancel', async (req, res) => {
 });
 
 // Razorpay Webhook Handler
-app.post('/webhooks/razorpay', async (req, res) => {
+app.post('/webhooks/razorpay', express.raw({type: 'application/json'}), async (req, res) => {
   try {
-    const webhookSecret = process.env.RAZORPAY_WEBHOOK_SECRET;
-    const receivedSignature = req.headers['x-razorpay-signature'];
-    const webhookBody = JSON.stringify(req.body);
+    const signature = req.headers['x-razorpay-signature'];
+    const body = req.body.toString();
 
     // Verify webhook signature
-    const expectedSignature = crypto
-      .createHmac('sha256', webhookSecret)
-      .update(webhookBody)
+    const hash = crypto
+      .createHmac('sha256', process.env.RAZORPAY_WEBHOOK_SECRET)
+      .update(body)
       .digest('hex');
 
-    if (receivedSignature !== expectedSignature) {
-      console.error('Invalid webhook signature');
-      return res.status(400).json({ success: false, error: 'Invalid signature' });
+    if (hash !== signature) {
+      return res.status(400).json({ error: 'Invalid signature' });
     }
 
-    const event = req.body.event;
-    const payload = req.body.payload;
+    const event = JSON.parse(body);
 
-    console.log('Webhook received:', event);
+    console.log('Webhook Event:', event.event);
 
-    switch (event) {
-      case 'subscription.activated':
-        // Subscription activated - create Shopify order
-        await handleSubscriptionActivated(payload.subscription);
+    // Handle different events
+    switch(event.event) {
+      case 'subscription.paused':
+        console.log('Subscription paused:', event.payload.subscription.entity.id);
+        // Update your database
         break;
-        
+
+      case 'subscription.resumed':
+        console.log('Subscription resumed:', event.payload.subscription.entity.id);
+        // Update your database
+        break;
+
+      case 'subscription.cancelled':
+        console.log('Subscription cancelled:', event.payload.subscription.entity.id);
+        // Update your database
+        break;
+
+      case 'subscription.halted':
+        console.log('Subscription halted:', event.payload.subscription.entity.id);
+        // Update your database
+        break;
+
       case 'payment.authorized':
-        // Payment authorized - create Shopify order
-        await handlePaymentAuthorized(payload.payment);
+        console.log('Payment authorized:', event.payload.payment.entity.id);
+        // Create order in Shopify
         await createShopifyOrder(event.payload.subscription.entity);
         break;
 
