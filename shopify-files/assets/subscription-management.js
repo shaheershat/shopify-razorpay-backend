@@ -212,11 +212,21 @@ class SubscriptionManagement {
     const confirmBtn = document.getElementById('confirmAction');
     const cancelBtn = document.getElementById('cancelAction');
 
-    if (confirmBtn) confirmBtn.addEventListener('click', () => this.executeAction());
-    if (cancelBtn) cancelBtn.addEventListener('click', () => this.closeModal());
-
-    // Close modal when clicking outside
     if (modal) {
+      // Hide modal initially
+      modal.style.display = 'none';
+      
+      // Confirm button
+      if (confirmBtn) {
+        confirmBtn.addEventListener('click', () => this.executeAction());
+      }
+      
+      // Cancel button
+      if (cancelBtn) {
+        cancelBtn.addEventListener('click', () => this.closeModal());
+      }
+      
+      // Close modal when clicking outside
       modal.addEventListener('click', (e) => {
         if (e.target === modal) {
           this.closeModal();
