@@ -1,0 +1,16 @@
+{
+  "sections": {
+    "main": {
+      "type": "main-subscription-management",
+      "settings": {
+        "show_page_title": true,
+        "page_title": "Subscription Management",
+        "show_customer_info": true,
+        "enable_subscription_actions": true
+      }
+    }
+  },
+  "order": [
+    "main"
+  ]
+}

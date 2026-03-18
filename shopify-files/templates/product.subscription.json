@@ -1,0 +1,35 @@
+{
+  "sections": {
+    "main": {
+      "type": "main-product-subscription",
+      "settings": {
+        "show_share_buttons": true,
+        "show_vendor": false,
+        "show_sku": true,
+        "show_quantity_selector": true,
+        "show_payment_button": false,
+        "show_pickup_availability": true,
+        "show_product_rating": false,
+        "show_sticky_product_form": true
+      }
+    },
+    "product-recommendations": {
+      "type": "product-recommendations",
+      "settings": {
+        "heading": "You may also like",
+        "show_product_rating": false
+      }
+    },
+    "recently-viewed": {
+      "type": "recently-viewed",
+      "settings": {
+        "heading": "Recently viewed"
+      }
+    }
+  },
+  "order": [
+    "main",
+    "product-recommendations",
+    "recently-viewed"
+  ]
+}
