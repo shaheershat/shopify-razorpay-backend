@@ -42,18 +42,18 @@ console.log('🔥 API URL from settings: {{ settings.subscription_api_url | defa
               <div class="subscription-option border rounded-lg p-4 cursor-pointer hover:border-blue-500 transition-colors" 
                    data-plan="3months" 
                    data-variant-id="46513506189501" 
-                   data-plan-id="plan_SSmSIoc3BsiB3x" 
-                   data-price="50000">
+                   data-plan-id="{{ product.metafields.subscription.plan_3_months_id }}" 
+                   data-price="{{ product.metafields.subscription.plan_3_months_price }}">
                 <div class="flex justify-between items-start mb-2">
                   <h3 class="font-semibold text-lg">Monthly for 3 Months</h3>
-                  <span class="text-2xl font-bold text-blue-600">₹500/month</span>
+                  <span class="text-2xl font-bold text-blue-600">₹{{ product.metafields.subscription.plan_3_months_price | divided_by: 100 }}/month</span>
                 </div>
-                <p class="text-gray-600 text-sm mb-2">Pay monthly for 3 months</p>
+                <p class="text-gray-600 text-sm mb-2">{{ product.metafields.subscription.plan_3_months_description }}</p>
                 <div class="flex items-center text-green-600 text-sm">
                   <svg class="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
                     <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l2-2z" clip-rule="evenodd"></path>
                   </svg>
-                  Save 10% compared to one-time
+                  Save {{ product.metafields.subscription.plan_3_months_discount }}% compared to one-time
                 </div>
               </div>
 
@@ -61,18 +61,18 @@ console.log('🔥 API URL from settings: {{ settings.subscription_api_url | defa
               <div class="subscription-option border rounded-lg p-4 cursor-pointer hover:border-blue-500 transition-colors" 
                    data-plan="6months" 
                    data-variant-id="46513506222269" 
-                   data-plan-id="plan_SSmSJYJfjKRXnb" 
-                   data-price="80000">
+                   data-plan-id="{{ product.metafields.subscription.plan_6_months_id }}" 
+                   data-price="{{ product.metafields.subscription.plan_6_months_price }}">
                 <div class="flex justify-between items-start mb-2">
                   <h3 class="font-semibold text-lg">Monthly for 6 Months</h3>
-                  <span class="text-2xl font-bold text-blue-600">₹800/month</span>
+                  <span class="text-2xl font-bold text-blue-600">₹{{ product.metafields.subscription.plan_6_months_price | divided_by: 100 }}/month</span>
                 </div>
-                <p class="text-gray-600 text-sm mb-2">Pay monthly for 6 months</p>
+                <p class="text-gray-600 text-sm mb-2">{{ product.metafields.subscription.plan_6_months_description }}</p>
                 <div class="flex items-center text-green-600 text-sm">
                   <svg class="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
                     <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l2-2z" clip-rule="evenodd"></path>
                   </svg>
-                  Save 15% compared to one-time
+                  Save {{ product.metafields.subscription.plan_6_months_discount }}% compared to one-time
                 </div>
               </div>
 
@@ -80,18 +80,18 @@ console.log('🔥 API URL from settings: {{ settings.subscription_api_url | defa
               <div class="subscription-option border rounded-lg p-4 cursor-pointer hover:border-blue-500 transition-colors" 
                    data-plan="12months" 
                    data-variant-id="46513506255037" 
-                   data-plan-id="plan_SSmSJs0ykpnJeZ" 
-                   data-price="120000">
+                   data-plan-id="{{ product.metafields.subscription.plan_12_months_id }}" 
+                   data-price="{{ product.metafields.subscription.plan_12_months_price }}">
                 <div class="flex justify-between items-start mb-2">
                   <h3 class="font-semibold text-lg">Monthly for 12 Months</h3>
-                  <span class="text-2xl font-bold text-blue-600">₹1200/month</span>
+                  <span class="text-2xl font-bold text-blue-600">₹{{ product.metafields.subscription.plan_12_months_price | divided_by: 100 }}/month</span>
                 </div>
-                <p class="text-gray-600 text-sm mb-2">Pay monthly for 12 months</p>
+                <p class="text-gray-600 text-sm mb-2">{{ product.metafields.subscription.plan_12_months_description }}</p>
                 <div class="flex items-center text-green-600 text-sm">
                   <svg class="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
                     <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l2-2z" clip-rule="evenodd"></path>
                   </svg>
-                  Save 20% compared to one-time
+                  Save {{ product.metafields.subscription.plan_12_months_discount }}% compared to one-time
                 </div>
               </div>
             </div>
