@@ -229,92 +229,107 @@ class SubscriptionProduct {
       selectedPlan: this.selectedPlan
     });
 
-    // Force use new key and override any existing Razorpay instance
-    if (typeof Razorpay !== 'undefined') {
-      // Clear any existing Magic Checkout configuration
-      window.Razorpay = null;
-      
-      // Reload Razorpay SDK with new key
-      const script = document.createElement('script');
-      script.src = 'https://checkout.razorpay.com/v1/razorpay.js';
-      script.async = true;
-      script.onload = () => {
-        console.log('🔄 Razorpay SDK reloaded with new key');
-        this.initializeRazorpayCheckout(orderId, subscriptionId, keyId, amount);
-      };
-      document.head.appendChild(script);
-    } else {
-      this.initializeRazorpayCheckout(orderId, subscriptionId, keyId, amount);
-    }
+    // Create a completely isolated Razorpay instance
+    this.createIsolatedRazorpayCheckout(orderId, subscriptionId, keyId, amount);
   }
   
-  initializeRazorpayCheckout(orderId, subscriptionId, keyId, amount) {
-    const options = {
-      key: 'rzp_live_SSfTeiwakEqpU0', // Force use new key
-      order_id: orderId,
-      name: 'Luvwish Subscription',
-      description: `${this.selectedPlan.name} - ${this.selectedPlan.description}`,
-      image: 'https://luvwish.in/cdn/shop/files/Logo_1_250x250.png',
-      amount: amount, // Amount in paise
-      currency: 'INR',
-      handler: (response) => {
-        console.log('✅ Payment completed:', response);
-        
-        // Verify payment and activate subscription
-        this.verifyPaymentAndActivateSubscription(response.razorpay_payment_id, response.razorpay_order_id, response.razorpay_signature, subscriptionId);
-      },
-      modal: {
-        ondismiss: () => {
-          console.log('❌ Payment modal dismissed');
-          this.showNotification('Payment cancelled', 'warning');
-        },
-        escape: true,
-        backdropclose: false,
-        handleback: true
-      },
-      notes: {
-        subscription_type: 'mandate',
-        flow: 'autopay',
-        plan_name: this.selectedPlan.name,
-        plan_price: this.selectedPlan.price,
-        variant_id: this.selectedPlan.variantId,
-        subscription_id: subscriptionId
-      },
-      theme: {
-        color: '#3399cc'
-      },
-      prefill: {
-        email: this.customerEmail || '',
-        contact: this.customerPhone || ''
-      },
-      config: {
-        display: {
-          blocks: {
-            banks: {
-              name: 'Pay via Banks',
-              instruments: [
-                {
-                  method: 'upi',
-                  flows: ['collect', 'intent'],
-                  entities: ['googlepay', 'phonepe', 'paytm']
-                }
-              ]
-            }
-          }
-        }
-      }
-    };
-
-    console.log('🔧 Razorpay options:', options);
+  createIsolatedRazorpayCheckout(orderId, subscriptionId, keyId, amount) {
+    // Remove all existing Razorpay scripts and instances
+    const existingScripts = document.querySelectorAll('script[src*="razorpay"]');
+    existingScripts.forEach(script => script.remove());
     
-    try {
-      const rzp = new Razorpay(options);
-      console.log('🚀 Opening Razorpay payment modal...');
-      rzp.open();
-    } catch (error) {
-      console.error('❌ Error opening Razorpay:', error);
-      this.showNotification('Failed to open payment gateway', 'error');
-    }
+    // Clear global Razorpay object
+    window.Razorpay = undefined;
+    
+    // Load fresh Razorpay SDK with timestamp to prevent caching
+    const timestamp = Date.now();
+    const script = document.createElement('script');
+    script.src = `https://checkout.razorpay.com/v1/razorpay.js?t=${timestamp}`;
+    script.async = true;
+    script.crossOrigin = 'anonymous';
+    
+    script.onload = () => {
+      console.log('🔄 Fresh Razorpay SDK loaded');
+      this.initializeCleanRazorpayCheckout(orderId, subscriptionId, keyId, amount);
+    };
+    
+    script.onerror = () => {
+      console.error('❌ Failed to load Razorpay SDK');
+      this.showNotification('Failed to load payment gateway', 'error');
+    };
+    
+    document.head.appendChild(script);
+  }
+  
+  initializeCleanRazorpayCheckout(orderId, subscriptionId, keyId, amount) {
+    // Wait a moment for Razorpay to fully initialize
+    setTimeout(() => {
+      if (typeof Razorpay === 'undefined') {
+        console.error('❌ Razorpay not available after reload');
+        this.showNotification('Payment gateway not available', 'error');
+        return;
+      }
+      
+      const options = {
+        key: 'rzp_live_SSfTeiwakEqpU0', // Force use new key
+        order_id: orderId,
+        name: 'Luvwish Subscription',
+        description: `${this.selectedPlan.name} - ${this.selectedPlan.description}`,
+        image: 'https://luvwish.in/cdn/shop/files/Logo_1_250x250.png',
+        amount: amount, // Amount in paise
+        currency: 'INR',
+        handler: (response) => {
+          console.log('✅ Payment completed:', response);
+          
+          // Verify payment and activate subscription
+          this.verifyPaymentAndActivateSubscription(response.razorpay_payment_id, response.razorpay_order_id, response.razorpay_signature, subscriptionId);
+        },
+        modal: {
+          ondismiss: () => {
+            console.log('❌ Payment modal dismissed');
+            this.showNotification('Payment cancelled', 'warning');
+          },
+          escape: true,
+          backdropclose: false,
+          handleback: true,
+          confirm_close: true,
+          animation: 'fade'
+        },
+        notes: {
+          subscription_type: 'mandate',
+          flow: 'autopay',
+          plan_name: this.selectedPlan.name,
+          plan_price: this.selectedPlan.price,
+          variant_id: this.selectedPlan.variantId,
+          subscription_id: subscriptionId,
+          timestamp: Date.now()
+        },
+        theme: {
+          color: '#3399cc',
+          backdrop_color: '#ffffff'
+        },
+        prefill: {
+          email: this.customerEmail || '',
+          contact: this.customerPhone || ''
+        },
+        readonly: {
+          email: false,
+          contact: false
+        }
+      };
+
+      console.log('🔧 Clean Razorpay options:', options);
+      
+      try {
+        // Create new Razorpay instance with fresh options
+        const rzp = new Razorpay(options);
+        console.log('🚀 Opening clean Razorpay payment modal...');
+        rzp.open();
+      } catch (error) {
+        console.error('❌ Error opening Razorpay:', error);
+        this.showNotification('Failed to open payment gateway', 'error');
+      }
+    }, 500);
   }
   
   async verifyPaymentAndActivateSubscription(paymentId, orderId, signature, subscriptionId) {
