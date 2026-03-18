@@ -207,9 +207,9 @@ class SubscriptionProduct {
       console.log('📊 API response data:', result);
 
       if (result.success) {
-        console.log('✅ Subscription created, opening Razorpay checkout...');
-        // Open Razorpay checkout with order (shows correct amount)
-        this.openRazorpayCheckout(result.order_id, result.subscription_id, result.key_id, result.amount);
+        console.log('✅ Subscription created, opening Razorpay subscription checkout...');
+        // Open Razorpay subscription checkout (mandate flow) - bypass Magic Checkout
+        this.openRazorpaySubscriptionCheckout(result.subscription_id, result.key_id);
       } else {
         console.error('❌ API error:', result.error);
         this.showNotification(`Failed to create subscription: ${result.error}`, 'error');
@@ -221,20 +221,18 @@ class SubscriptionProduct {
   }
   
   openRazorpayCheckout(orderId, subscriptionId, keyId, amount) {
-    console.log('💳 Opening Razorpay checkout with:', {
-      orderId,
+    console.log('💳 Opening Razorpay SUBSCRIPTION checkout (not Magic Checkout):', {
       subscriptionId,
       keyId,
-      amount,
       selectedPlan: this.selectedPlan
     });
 
-    // Use direct Razorpay approach - no script reloading
-    this.openDirectRazorpayCheckout(orderId, subscriptionId, keyId, amount);
+    // Use SUBSCRIPTION checkout - bypass Magic Checkout completely
+    this.openRazorpaySubscriptionCheckout(subscriptionId, keyId);
   }
   
-  openDirectRazorpayCheckout(orderId, subscriptionId, keyId, amount) {
-    console.log('� Opening direct Razorpay checkout...');
+  openRazorpaySubscriptionCheckout(subscriptionId, keyId) {
+    console.log('🚀 Opening pure Razorpay subscription checkout (mandate flow)...');
     
     // Check if Razorpay is available
     if (typeof Razorpay === 'undefined') {
@@ -243,24 +241,34 @@ class SubscriptionProduct {
       return;
     }
     
+    // PURE SUBSCRIPTION CHECKOUT - bypasses Magic Checkout
     const options = {
       key: 'rzp_live_SSfTeiwakEqpU0', // Force use new key
-      order_id: orderId,
+      subscription_id: subscriptionId, // Use subscription_id, not order_id
       name: 'Luvwish Subscription',
       description: `${this.selectedPlan.name} - ${this.selectedPlan.description}`,
       image: 'https://luvwish.in/cdn/shop/files/Logo_1_250x250.png',
-      amount: amount, // Amount in paise
-      currency: 'INR',
       handler: (response) => {
-        console.log('✅ Payment completed:', response);
+        console.log('✅ Subscription payment completed:', response);
         
-        // Verify payment and activate subscription
-        this.verifyPaymentAndActivateSubscription(response.razorpay_payment_id, response.razorpay_order_id, response.razorpay_signature, subscriptionId);
+        // For subscription flow, we get razorpay_subscription_id and razorpay_payment_id
+        if (response.razorpay_subscription_id && response.razorpay_payment_id) {
+          console.log('🎉 Subscription activated successfully!');
+          this.showNotification('Subscription activated successfully!', 'success');
+          
+          // Redirect to subscription management page after 2 seconds
+          setTimeout(() => {
+            window.location.href = '/pages/subscription-management';
+          }, 2000);
+        } else {
+          console.error('❌ Invalid subscription response:', response);
+          this.showNotification('Subscription activation failed', 'error');
+        }
       },
       modal: {
         ondismiss: () => {
-          console.log('❌ Payment modal dismissed');
-          this.showNotification('Payment cancelled', 'warning');
+          console.log('❌ Subscription modal dismissed');
+          this.showNotification('Subscription setup cancelled', 'warning');
         },
         escape: true,
         backdropclose: false,
@@ -291,22 +299,25 @@ class SubscriptionProduct {
       }
     };
 
-    console.log('🔧 Direct Razorpay options:', options);
+    console.log('🔧 Razorpay SUBSCRIPTION options:', options);
+    console.log('🔍 Using subscription_id:', subscriptionId);
+    console.log('🚀 Opening SUBSCRIPTION checkout (mandate flow) - NO Magic Checkout!');
     
     try {
-      // Create new Razorpay instance
+      // Create new Razorpay instance for SUBSCRIPTION
       const rzp = new Razorpay(options);
-      console.log('✅ Razorpay instance created successfully');
-      console.log('🚀 Opening Razorpay payment modal...');
+      console.log('✅ Razorpay subscription instance created successfully');
+      console.log('🚀 Opening Razorpay SUBSCRIPTION modal...');
       
-      // Open modal immediately
+      // Open subscription modal (this will show mandate flow)
       rzp.open();
       
       // Check if modal opened
       setTimeout(() => {
         const modal = document.querySelector('.razorpay-container');
         if (modal) {
-          console.log('✅ Razorpay modal opened successfully');
+          console.log('✅ Razorpay subscription modal opened successfully');
+          console.log('🎯 This is MANDATE flow - no immediate payment');
         } else {
           console.warn('⚠️ Razorpay modal not found, trying to open again...');
           // Try once more
@@ -315,8 +326,8 @@ class SubscriptionProduct {
       }, 500);
       
     } catch (error) {
-      console.error('❌ Error opening Razorpay:', error);
-      this.showNotification(`Failed to open payment gateway: ${error.message}`, 'error');
+      console.error('❌ Error opening Razorpay subscription:', error);
+      this.showNotification(`Failed to open subscription: ${error.message}`, 'error');
     }
   }
   

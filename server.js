@@ -78,8 +78,7 @@ app.post('/api/create-subscription-direct', async (req, res) => {
       product_id,
       frequency,
       product_title,
-      product_description,
-      amount
+      product_description
     } = req.body;
 
     console.log('Creating direct subscription (mandate flow):', req.body);
@@ -99,8 +98,6 @@ app.post('/api/create-subscription-direct', async (req, res) => {
       total_count: parseInt(frequency),
       start_at: Math.floor(Date.now() / 1000) + 60, // Start in 1 minute
       expire_by: Math.floor(Date.now() / 1000) + (parseInt(frequency) * 30 * 24 * 60 * 60), // Expire after frequency months
-      // email: customer_email, // Remove email field as it's causing error
-      // phone: customer_phone, // Remove phone field as it's causing error
       notes: {
         product_id: product_id,
         product_title: product_title,
@@ -114,28 +111,13 @@ app.post('/api/create-subscription-direct', async (req, res) => {
 
     console.log('Direct subscription created:', subscription.id);
 
-    // Create a subscription order for checkout with correct amount
-    const order = await razorpay.orders.create({
-      amount: amount || 50000, // Default ₹500 if not provided (in paise)
-      currency: 'INR',
-      receipt: `subscription_${subscription.id}`,
-      payment_capture: 1,
-      notes: {
-        subscription_id: subscription.id,
-        is_subscription: true
-      }
-    });
-
-    console.log('Subscription order created:', order.id);
-
+    // Return ONLY subscription info for pure subscription checkout (no order)
     res.json({
       success: true,
       subscription_id: subscription.id,
-      order_id: order.id,
-      amount: amount || 50000,
       key_id: process.env.RAZORPAY_KEY_ID,
       status: subscription.status,
-      message: 'Subscription and order created - complete payment to activate'
+      message: 'Subscription created - complete mandate to activate'
     });
 
   } catch (error) {
