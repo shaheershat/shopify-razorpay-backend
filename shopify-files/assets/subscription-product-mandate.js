@@ -5,7 +5,8 @@ class SubscriptionProduct {
   constructor() {
     console.log('🔥 SubscriptionProduct constructor called!');
     
-    this.apiBase = window.subscriptionConfig?.apiBase || 'https://shopify-razorpay-backend-production.up.railway.app';
+    // Test with local server first
+    this.apiBase = 'http://localhost:8080'; // Use local server for testing
     this.razorpayKeyId = window.subscriptionConfig?.razorpay_key_id || 'rzp_live_SSfTeiwakEqpU0';
     this.customerEmail = window.subscriptionConfig?.customerEmail;
     this.customerPhone = window.subscriptionConfig?.customerPhone;
