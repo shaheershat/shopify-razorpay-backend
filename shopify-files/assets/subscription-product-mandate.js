@@ -148,54 +148,45 @@ class SubscriptionProduct {
   
   async createSubscription() {
     try {
-      console.log('🚀 Starting subscription creation (mandate flow)...');
-      this.showNotification('Creating subscription...', 'info');
-      
       if (!this.selectedPlan) {
-        console.error('❌ No plan selected');
         this.showNotification('Please select a subscription plan', 'error');
         return;
       }
 
-      // Get customer info
-      const customerEmail = document.getElementById('customerEmail')?.value;
-      const customerPhone = document.getElementById('customerPhone')?.value;
-      
-      console.log('👤 Customer info:', {
-        email: customerEmail,
-        phone: customerPhone
-      });
+      const customerEmail = this.customerEmail || document.getElementById('customerEmail')?.value;
+      const customerPhone = this.customerPhone || document.getElementById('customerPhone')?.value;
 
-      if (!customerEmail) {
-        console.error('❌ No customer email');
-        this.showNotification('Please enter your email', 'error');
+      if (!customerEmail || !customerPhone) {
+        this.showNotification('Please fill in your email and phone number', 'error');
         return;
       }
 
-      // Create subscription via backend (mandate flow - no initial payment)
-      console.log('🌐 Calling backend API for mandate flow...');
+      console.log('� Creating subscription with:', {
+        planId: this.selectedPlan.planId,
+        customerEmail,
+        customerPhone,
+        amount: this.selectedPlan.price // Use price from selected plan
+      });
+
+      // Show loading
+      this.showNotification('Processing subscription...', 'info');
       
+      // Step 1: Create Razorpay subscription (mandate flow) - NO payment yet
       const response = await fetch(`${this.apiBase}/api/create-subscription-direct`, {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json'
+          'Content-Type': 'application/json'
         },
-        mode: 'cors',
         body: JSON.stringify({
           plan_id: this.selectedPlan.planId,
           customer_email: customerEmail,
-          customer_phone: customerPhone || '',
+          customer_phone: customerPhone,
           product_id: this.selectedPlan.variantId,
-          frequency: this.selectedPlan.frequency.replace('months', ''),
+          frequency: this.selectedPlan.frequency,
           product_title: this.selectedPlan.name,
-          product_description: this.selectedPlan.description,
-          amount: Math.round(this.selectedPlan.price * 100) // Convert to paise
+          product_description: this.selectedPlan.description
         })
       });
-
-      console.log('📡 API response status:', response.status);
-      console.log('📡 API response headers:', response.headers);
 
       if (!response.ok) {
         const errorText = await response.text();
@@ -209,7 +200,7 @@ class SubscriptionProduct {
       if (result.success) {
         console.log('✅ Subscription created, opening Razorpay subscription checkout...');
         console.log('💰 Plan amount from backend:', result.amount);
-        // Open Razorpay subscription checkout (mandate flow) - bypass Magic Checkout
+        // Step 2: Open Razorpay checkout to AUTHENTICATE the subscription (mandate flow)
         this.openRazorpaySubscriptionCheckout(result.subscription_id, result.key_id, result.amount);
       } else {
         console.error('❌ API error:', result.error);
