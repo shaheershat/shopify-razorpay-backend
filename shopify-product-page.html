@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Product Subscription - Luvwish</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+</head>
+<body class="bg-gray-50">
+    <div class="container mx-auto px-4 py-8">
+        <!-- Product Header -->
+        <div class="bg-white rounded-lg shadow-lg p-6 mb-6">
+            <div class="flex flex-col md:flex-row gap-6">
+                <div class="md:w-1/2">
+                    <img src="https://via.placeholder.com/400x400" alt="Product" class="w-full rounded-lg">
+                </div>
+                <div class="md:w-1/2">
+                    <h1 class="text-3xl font-bold mb-4">Premium Product</h1>
+                    <p class="text-gray-600 mb-6">High-quality product with flexible subscription options</p>
+                    
+                    <!-- Subscription Options -->
+                    <div class="mb-6">
+                        <h3 class="text-lg font-semibold mb-3">Choose Subscription Plan</h3>
+                        <div class="space-y-3">
+                            <div class="subscription-option border rounded-lg p-4 cursor-pointer hover:border-blue-500 transition-colors" data-plan="3months">
+                                <div class="flex justify-between items-center">
+                                    <div>
+                                        <h4 class="font-semibold">Monthly for 3 Months</h4>
+                                        <p class="text-sm text-gray-600">Pay monthly for 3 months</p>
+                                    </div>
+                                    <div class="text-right">
+                                        <p class="text-xl font-bold">₹999/month</p>
+                                        <p class="text-sm text-green-600">Save 10%</p>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="subscription-option border rounded-lg p-4 cursor-pointer hover:border-blue-500 transition-colors" data-plan="6months">
+                                <div class="flex justify-between items-center">
+                                    <div>
+                                        <h4 class="font-semibold">Monthly for 6 Months</h4>
+                                        <p class="text-sm text-gray-600">Pay monthly for 6 months</p>
+                                    </div>
+                                    <div class="text-right">
+                                        <p class="text-xl font-bold">₹949/month</p>
+                                        <p class="text-sm text-green-600">Save 15%</p>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="subscription-option border rounded-lg p-4 cursor-pointer hover:border-blue-500 transition-colors" data-plan="12months">
+                                <div class="flex justify-between items-center">
+                                    <div>
+                                        <h4 class="font-semibold">Monthly for 12 Months</h4>
+                                        <p class="text-sm text-gray-600">Pay monthly for 12 months</p>
+                                    </div>
+                                    <div class="text-right">
+                                        <p class="text-xl font-bold">₹899/month</p>
+                                        <p class="text-sm text-green-600">Save 20%</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Customer Information -->
+                    <div class="mb-6">
+                        <h3 class="text-lg font-semibold mb-3">Customer Information</h3>
+                        <div class="space-y-3">
+                            <input type="email" id="customerEmail" placeholder="Email Address" class="w-full border rounded-lg px-4 py-2">
+                            <input type="tel" id="customerPhone" placeholder="Phone Number" class="w-full border rounded-lg px-4 py-2">
+                        </div>
+                    </div>
+                    
+                    <!-- Action Buttons -->
+                    <div class="flex gap-3">
+                        <button id="addToCartBtn" class="flex-1 bg-blue-600 text-white py-3 rounded-lg font-semibold hover:bg-blue-700 transition-colors disabled:bg-gray-400" disabled>
+                            Add to Cart
+                        </button>
+                        <button id="subscribeNowBtn" class="flex-1 bg-green-600 text-white py-3 rounded-lg font-semibold hover:bg-green-700 transition-colors disabled:bg-gray-400" disabled>
+                            Subscribe Now
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Cart Summary -->
+        <div id="cartSummary" class="bg-white rounded-lg shadow-lg p-6 hidden">
+            <h3 class="text-xl font-bold mb-4">Cart Summary</h3>
+            <div id="cartItems"></div>
+            <div class="border-t pt-4 mt-4">
+                <div class="flex justify-between font-bold text-lg">
+                    <span>Total:</span>
+                    <span id="totalAmount">₹0</span>
+                </div>
+                <button id="checkoutBtn" class="w-full bg-blue-600 text-white py-3 rounded-lg font-semibold hover:bg-blue-700 transition-colors mt-4">
+                    Proceed to Checkout
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Configuration
+        const API_BASE = 'https://shopify-razorpay-backend-production.up.railway.app';
+        const RAZORPAY_KEY_ID = 'rzp_live_SQfuiRsuG1eqca';
+        
+        // Plan mapping
+        const planMapping = {
+            '3months': {
+                planId: 'plan_SSBkeTxGhyv39t',
+                frequency: 3,
+                price: 999,
+                name: 'Monthly for 3 Months'
+            },
+            '6months': {
+                planId: 'plan_SSBkeTxGhyv39t', // Same plan with different frequency
+                frequency: 6,
+                price: 949,
+                name: 'Monthly for 6 Months'
+            },
+            '12months': {
+                planId: 'plan_SSBkeTxGhyv39t', // Same plan with different frequency
+                frequency: 12,
+                price: 899,
+                name: 'Monthly for 12 Months'
+            }
+        };
+        
+        let selectedPlan = null;
+        let cart = [];
+        
+        // Initialize
+        document.addEventListener('DOMContentLoaded', function() {
+            initializeSubscriptionOptions();
+            initializeButtons();
+        });
+        
+        function initializeSubscriptionOptions() {
+            const options = document.querySelectorAll('.subscription-option');
+            options.forEach(option => {
+                option.addEventListener('click', function() {
+                    // Remove previous selection
+                    options.forEach(opt => opt.classList.remove('border-blue-500', 'bg-blue-50'));
+                    
+                    // Add selection to clicked option
+                    this.classList.add('border-blue-500', 'bg-blue-50');
+                    
+                    selectedPlan = planMapping[this.dataset.plan];
+                    updateButtonStates();
+                });
+            });
+        }
+        
+        function initializeButtons() {
+            document.getElementById('addToCartBtn').addEventListener('click', addToCart);
+            document.getElementById('subscribeNowBtn').addEventListener('click', subscribeNow);
+            document.getElementById('checkoutBtn').addEventListener('click', checkout);
+            
+            // Enable buttons when customer info is filled
+            document.getElementById('customerEmail').addEventListener('input', updateButtonStates);
+            document.getElementById('customerPhone').addEventListener('input', updateButtonStates);
+        }
+        
+        function updateButtonStates() {
+            const email = document.getElementById('customerEmail').value;
+            const phone = document.getElementById('customerPhone').value;
+            const hasValidInfo = email && phone && selectedPlan;
+            
+            document.getElementById('addToCartBtn').disabled = !hasValidInfo;
+            document.getElementById('subscribeNowBtn').disabled = !hasValidInfo;
+        }
+        
+        function addToCart() {
+            if (!selectedPlan) return;
+            
+            const cartItem = {
+                ...selectedPlan,
+                email: document.getElementById('customerEmail').value,
+                phone: document.getElementById('customerPhone').value,
+                timestamp: new Date().toISOString()
+            };
+            
+            cart.push(cartItem);
+            updateCartSummary();
+            
+            // Show success message
+            showNotification('Added to cart successfully!');
+        }
+        
+        function updateCartSummary() {
+            const cartSummary = document.getElementById('cartSummary');
+            const cartItems = document.getElementById('cartItems');
+            const totalAmount = document.getElementById('totalAmount');
+            
+            if (cart.length === 0) {
+                cartSummary.classList.add('hidden');
+                return;
+            }
+            
+            cartSummary.classList.remove('hidden');
+            
+            // Clear and rebuild cart items
+            cartItems.innerHTML = '';
+            let total = 0;
+            
+            cart.forEach((item, index) => {
+                total += item.price;
+                const itemElement = document.createElement('div');
+                itemElement.className = 'flex justify-between items-center py-2 border-b';
+                itemElement.innerHTML = `
+                    <div>
+                        <h4 class="font-semibold">${item.name}</h4>
+                        <p class="text-sm text-gray-600">${item.email}</p>
+                    </div>
+                    <div class="text-right">
+                        <p class="font-bold">₹${item.price}</p>
+                        <button onclick="removeFromCart(${index})" class="text-red-600 text-sm hover:underline">Remove</button>
+                    </div>
+                `;
+                cartItems.appendChild(itemElement);
+            });
+            
+            totalAmount.textContent = `₹${total}`;
+        }
+        
+        function removeFromCart(index) {
+            cart.splice(index, 1);
+            updateCartSummary();
+        }
+        
+        function subscribeNow() {
+            if (!selectedPlan) return;
+            
+            createOrder(selectedPlan);
+        }
+        
+        function checkout() {
+            if (cart.length === 0) return;
+            
+            // Process each item in cart
+            cart.forEach(item => {
+                createOrder(item);
+            });
+            
+            // Clear cart after processing
+            cart = [];
+            updateCartSummary();
+        }
+        
+        async function createOrder(subscriptionData) {
+            try {
+                // Create Razorpay order
+                const response = await fetch(`${API_BASE}/api/create-razorpay-order`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        amount: subscriptionData.price * 100, // Razorpay expects amount in paise
+                        currency: 'INR',
+                        receipt: `receipt_${Date.now()}`
+                    })
+                });
+                
+                const orderData = await response.json();
+                
+                if (orderData.success) {
+                    openRazorpayCheckout(orderData.order, subscriptionData);
+                } else {
+                    showNotification('Failed to create order: ' + orderData.error, 'error');
+                }
+            } catch (error) {
+                showNotification('Error creating order: ' + error.message, 'error');
+            }
+        }
+        
+        function openRazorpayCheckout(order, subscriptionData) {
+            const options = {
+                key: RAZORPAY_KEY_ID,
+                amount: order.amount,
+                currency: order.currency,
+                name: 'Luvwish',
+                description: subscriptionData.name,
+                order_id: order.id,
+                handler: function(response) {
+                    handlePaymentSuccess(response, subscriptionData);
+                },
+                modal: {
+                    ondismiss: function() {
+                        showNotification('Payment cancelled', 'warning');
+                    }
+                },
+                prefill: {
+                    email: subscriptionData.email,
+                    contact: subscriptionData.phone
+                }
+            };
+            
+            const rzp = new Razorpay(options);
+            rzp.open();
+        }
+        
+        async function handlePaymentSuccess(paymentResponse, subscriptionData) {
+            try {
+                const response = await fetch(`${API_BASE}/api/create-subscription`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        payment_id: paymentResponse.razorpay_payment_id,
+                        plan_id: subscriptionData.planId,
+                        customer_email: subscriptionData.email,
+                        customer_phone: subscriptionData.phone,
+                        product_id: 'product1',
+                        frequency: subscriptionData.frequency
+                    })
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    showNotification('Subscription created successfully!', 'success');
+                    // Redirect to subscription management page
+                    setTimeout(() => {
+                        window.location.href = '/pages/subscription-management';
+                    }, 2000);
+                } else {
+                    showNotification('Failed to create subscription: ' + result.error, 'error');
+                }
+            } catch (error) {
+                showNotification('Error creating subscription: ' + error.message, 'error');
+            }
+        }
+        
+        function showNotification(message, type = 'info') {
+            const notification = document.createElement('div');
+            notification.className = `fixed top-4 right-4 p-4 rounded-lg text-white z-50 ${
+                type === 'success' ? 'bg-green-600' :
+                type === 'error' ? 'bg-red-600' :
+                type === 'warning' ? 'bg-yellow-600' : 'bg-blue-600'
+            }`;
+            notification.textContent = message;
+            
+            document.body.appendChild(notification);
+            
+            setTimeout(() => {
+                notification.remove();
+            }, 3000);
+        }
+    </script>
+</body>
+</html>

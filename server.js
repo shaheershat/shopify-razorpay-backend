@@ -3,6 +3,7 @@ const dotenv = require('dotenv');
 const cors = require('cors');
 const Razorpay = require('razorpay');
 const crypto = require('crypto');
+const axios = require('axios');
 
 dotenv.config();
 
@@ -39,6 +40,32 @@ const razorpay = new Razorpay({
 // Health check
 app.get('/health', (req, res) => {
   res.json({ status: 'Backend is running!' });
+});
+
+// Create Razorpay Order
+app.post('/api/create-razorpay-order', async (req, res) => {
+  try {
+    const { amount, currency, receipt } = req.body;
+
+    const order = await razorpay.orders.create({
+      amount: amount,
+      currency: currency || 'INR',
+      receipt: receipt,
+      payment_capture: 1
+    });
+
+    res.json({
+      success: true,
+      order: order
+    });
+
+  } catch (error) {
+    console.error('Error creating Razorpay order:', error);
+    res.status(400).json({ 
+      success: false, 
+      error: error.message 
+    });
+  }
 });
 
 // Create Subscription
@@ -237,6 +264,7 @@ app.post('/webhooks/razorpay', express.raw({type: 'application/json'}), async (r
       case 'payment.authorized':
         console.log('Payment authorized:', event.payload.payment.entity.id);
         // Create order in Shopify
+        await createShopifyOrder(event.payload.subscription.entity);
         break;
 
       case 'payment.failed':
@@ -255,6 +283,66 @@ app.post('/webhooks/razorpay', express.raw({type: 'application/json'}), async (r
     res.status(400).json({ error: error.message });
   }
 });
+
+// Shopify Order Creation Function
+async function createShopifyOrder(subscriptionData) {
+  try {
+    const shopifyUrl = `https://${process.env.SHOPIFY_STORE_NAME}/admin/api/2023-10/orders.json`;
+    
+    const orderData = {
+      order: {
+        email: subscriptionData.email || subscriptionData.notes?.customer_email,
+        financial_status: 'paid',
+        line_items: [
+          {
+            variant_id: getVariantId(subscriptionData.notes?.product_id),
+            quantity: 1,
+            title: `${subscriptionData.plan_id} - Subscription`,
+            price: (subscriptionData.charge_at / 100).toString(), // Convert from paise to rupees
+            taxable: true
+          }
+        ],
+        note: `Subscription ID: ${subscriptionData.id} | Plan: ${subscriptionData.plan_id}`,
+        tags: ['subscription', 'razorpay', subscriptionData.status],
+        shipping_address: {
+          first_name: subscriptionData.customer?.name?.split(' ')[0] || 'Customer',
+          last_name: subscriptionData.customer?.name?.split(' ')[1] || 'Name',
+          address1: subscriptionData.notes?.address || 'Default Address',
+          city: subscriptionData.notes?.city || 'Default City',
+          province: subscriptionData.notes?.state || 'Default State',
+          country: 'IN',
+          zip: subscriptionData.notes?.postal_code || '000000'
+        }
+      }
+    };
+
+    const response = await axios.post(shopifyUrl, orderData, {
+      headers: {
+        'X-Shopify-Access-Token': process.env.SHOPIFY_ACCESS_TOKEN,
+        'Content-Type': 'application/json'
+      }
+    });
+
+    console.log('Shopify order created:', response.data.order.id);
+    return response.data.order;
+
+  } catch (error) {
+    console.error('Error creating Shopify order:', error.response?.data || error.message);
+    throw error;
+  }
+}
+
+// Helper function to get variant ID from product ID
+function getVariantId(productId) {
+  // In a real implementation, you'd fetch this from Shopify
+  // For now, return a default variant ID
+  const variantMap = {
+    'product1': '1234567890123',
+    'product2': '1234567890124',
+    'product3': '1234567890125'
+  };
+  return variantMap[productId] || '1234567890123';
+}
 
 // Error handling
 app.use((err, req, res, next) => {

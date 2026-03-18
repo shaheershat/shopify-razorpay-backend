@@ -1,0 +1,388 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Subscription Management - Luvwish</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+</head>
+<body class="bg-gray-50">
+    <div class="container mx-auto px-4 py-8">
+        <h1 class="text-3xl font-bold mb-8">My Subscriptions</h1>
+        
+        <!-- Loading State -->
+        <div id="loadingState" class="text-center py-12">
+            <div class="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+            <p class="mt-4 text-gray-600">Loading your subscriptions...</p>
+        </div>
+        
+        <!-- Subscriptions List -->
+        <div id="subscriptionsList" class="space-y-6 hidden">
+            <!-- Subscriptions will be dynamically added here -->
+        </div>
+        
+        <!-- Empty State -->
+        <div id="emptyState" class="text-center py-12 hidden">
+            <div class="text-gray-400 mb-4">
+                <svg class="w-16 h-16 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path>
+                </svg>
+            </div>
+            <h3 class="text-xl font-semibold text-gray-600 mb-2">No Active Subscriptions</h3>
+            <p class="text-gray-500 mb-6">You don't have any active subscriptions yet.</p>
+            <a href="/collections/all" class="bg-blue-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-blue-700 transition-colors">
+                Browse Products
+            </a>
+        </div>
+    </div>
+
+    <!-- Subscription Action Modal -->
+    <div id="actionModal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50 flex items-center justify-center">
+        <div class="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+            <h3 id="modalTitle" class="text-xl font-bold mb-4">Confirm Action</h3>
+            <p id="modalMessage" class="text-gray-600 mb-6">Are you sure you want to perform this action?</p>
+            <div class="flex gap-3">
+                <button id="confirmAction" class="flex-1 bg-blue-600 text-white py-2 rounded-lg font-semibold hover:bg-blue-700 transition-colors">
+                    Confirm
+                </button>
+                <button id="cancelAction" class="flex-1 bg-gray-300 text-gray-700 py-2 rounded-lg font-semibold hover:bg-gray-400 transition-colors">
+                    Cancel
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = 'https://shopify-razorpay-backend-production.up.railway.app';
+        let subscriptions = [];
+        let currentAction = null;
+        let currentSubscriptionId = null;
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', function() {
+            loadSubscriptions();
+            initializeModal();
+        });
+
+        async function loadSubscriptions() {
+            try {
+                // In a real implementation, you'd get customer ID from Shopify customer session
+                const customerId = getCustomerId();
+                
+                // For demo purposes, we'll simulate loading subscriptions
+                // In production, you'd have an endpoint to fetch customer subscriptions
+                await simulateLoadingSubscriptions();
+                
+                renderSubscriptions();
+            } catch (error) {
+                console.error('Error loading subscriptions:', error);
+                showError('Failed to load subscriptions');
+            }
+        }
+
+        async function simulateLoadingSubscriptions() {
+            // Simulate API call delay
+            await new Promise(resolve => setTimeout(resolve, 1500));
+            
+            // Mock data for demonstration
+            subscriptions = [
+                {
+                    id: 'sub_123456789',
+                    plan_name: 'Monthly for 3 Months',
+                    status: 'active',
+                    current_period_start: '2024-03-01',
+                    current_period_end: '2024-04-01',
+                    amount: 999,
+                    customer_email: 'customer@example.com',
+                    product_id: 'product1',
+                    total_count: 3,
+                    paid_count: 1,
+                    remaining_count: 2
+                },
+                {
+                    id: 'sub_987654321',
+                    plan_name: 'Monthly for 6 Months',
+                    status: 'paused',
+                    current_period_start: '2024-02-15',
+                    current_period_end: '2024-03-15',
+                    amount: 949,
+                    customer_email: 'customer@example.com',
+                    product_id: 'product2',
+                    total_count: 6,
+                    paid_count: 2,
+                    remaining_count: 4
+                }
+            ];
+        }
+
+        function getCustomerId() {
+            // In production, get from Shopify customer session
+            return 'customer_123';
+        }
+
+        function renderSubscriptions() {
+            const loadingState = document.getElementById('loadingState');
+            const subscriptionsList = document.getElementById('subscriptionsList');
+            const emptyState = document.getElementById('emptyState');
+
+            loadingState.classList.add('hidden');
+
+            if (subscriptions.length === 0) {
+                emptyState.classList.remove('hidden');
+                subscriptionsList.classList.add('hidden');
+            } else {
+                emptyState.classList.add('hidden');
+                subscriptionsList.classList.remove('hidden');
+                
+                subscriptionsList.innerHTML = subscriptions.map(subscription => createSubscriptionCard(subscription)).join('');
+            }
+        }
+
+        function createSubscriptionCard(subscription) {
+            const statusColors = {
+                'active': 'bg-green-100 text-green-800',
+                'paused': 'bg-yellow-100 text-yellow-800',
+                'cancelled': 'bg-red-100 text-red-800',
+                'completed': 'bg-gray-100 text-gray-800'
+            };
+
+            const statusText = {
+                'active': 'Active',
+                'paused': 'Paused',
+                'cancelled': 'Cancelled',
+                'completed': 'Completed'
+            };
+
+            return `
+                <div class="bg-white rounded-lg shadow-lg p-6">
+                    <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                        <div class="flex-1">
+                            <div class="flex items-center gap-3 mb-2">
+                                <h3 class="text-xl font-bold">${subscription.plan_name}</h3>
+                                <span class="px-3 py-1 rounded-full text-sm font-medium ${statusColors[subscription.status]}">
+                                    ${statusText[subscription.status]}
+                                </span>
+                            </div>
+                            
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                                <div>
+                                    <p class="text-gray-600">Subscription ID:</p>
+                                    <p class="font-medium">${subscription.id}</p>
+                                </div>
+                                <div>
+                                    <p class="text-gray-600">Amount:</p>
+                                    <p class="font-medium">₹${subscription.amount}/month</p>
+                                </div>
+                                <div>
+                                    <p class="text-gray-600">Current Period:</p>
+                                    <p class="font-medium">${formatDate(subscription.current_period_start)} - ${formatDate(subscription.current_period_end)}</p>
+                                </div>
+                                <div>
+                                    <p class="text-gray-600">Progress:</p>
+                                    <p class="font-medium">${subscription.paid_count}/${subscription.total_count} payments</p>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="flex flex-col gap-2 min-w-[150px]">
+                            ${getActionButtons(subscription)}
+                        </div>
+                    </div>
+                    
+                    <!-- Progress Bar -->
+                    <div class="mt-4">
+                        <div class="w-full bg-gray-200 rounded-full h-2">
+                            <div class="bg-blue-600 h-2 rounded-full" style="width: ${(subscription.paid_count / subscription.total_count) * 100}%"></div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function getActionButtons(subscription) {
+            const buttons = [];
+
+            switch (subscription.status) {
+                case 'active':
+                    buttons.push(
+                        `<button onclick="pauseSubscription('${subscription.id}')" class="w-full bg-yellow-600 text-white py-2 px-4 rounded-lg font-semibold hover:bg-yellow-700 transition-colors">
+                            Pause
+                        </button>`,
+                        `<button onclick="skipPayment('${subscription.id}')" class="w-full bg-blue-600 text-white py-2 px-4 rounded-lg font-semibold hover:bg-blue-700 transition-colors">
+                            Skip Next Payment
+                        </button>`,
+                        `<button onclick="cancelSubscription('${subscription.id}')" class="w-full bg-red-600 text-white py-2 px-4 rounded-lg font-semibold hover:bg-red-700 transition-colors">
+                            Cancel
+                        </button>`
+                    );
+                    break;
+                case 'paused':
+                    buttons.push(
+                        `<button onclick="resumeSubscription('${subscription.id}')" class="w-full bg-green-600 text-white py-2 px-4 rounded-lg font-semibold hover:bg-green-700 transition-colors">
+                            Resume
+                        </button>`,
+                        `<button onclick="cancelSubscription('${subscription.id}')" class="w-full bg-red-600 text-white py-2 px-4 rounded-lg font-semibold hover:bg-red-700 transition-colors">
+                            Cancel
+                        </button>`
+                    );
+                    break;
+                case 'cancelled':
+                case 'completed':
+                    buttons.push(
+                        `<button onclick="createNewSubscription()" class="w-full bg-blue-600 text-white py-2 px-4 rounded-lg font-semibold hover:bg-blue-700 transition-colors">
+                            Create New Subscription
+                        </button>`
+                    );
+                    break;
+            }
+
+            return buttons.join('');
+        }
+
+        function formatDate(dateString) {
+            const date = new Date(dateString);
+            return date.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+        }
+
+        function initializeModal() {
+            const modal = document.getElementById('actionModal');
+            const confirmBtn = document.getElementById('confirmAction');
+            const cancelBtn = document.getElementById('cancelAction');
+
+            confirmBtn.addEventListener('click', executeAction);
+            cancelBtn.addEventListener('click', closeModal);
+
+            // Close modal when clicking outside
+            modal.addEventListener('click', function(e) {
+                if (e.target === modal) {
+                    closeModal();
+                }
+            });
+        }
+
+        function showModal(title, message, action, subscriptionId) {
+            document.getElementById('modalTitle').textContent = title;
+            document.getElementById('modalMessage').textContent = message;
+            document.getElementById('actionModal').classList.remove('hidden');
+            
+            currentAction = action;
+            currentSubscriptionId = subscriptionId;
+        }
+
+        function closeModal() {
+            document.getElementById('actionModal').classList.add('hidden');
+            currentAction = null;
+            currentSubscriptionId = null;
+        }
+
+        async function executeAction() {
+            if (!currentAction || !currentSubscriptionId) return;
+
+            try {
+                let endpoint;
+                let actionText;
+
+                switch (currentAction) {
+                    case 'pause':
+                        endpoint = '/api/subscriptions/pause';
+                        actionText = 'pausing';
+                        break;
+                    case 'resume':
+                        endpoint = '/api/subscriptions/resume';
+                        actionText = 'resuming';
+                        break;
+                    case 'skip':
+                        endpoint = '/api/subscriptions/skip';
+                        actionText = 'skipping payment for';
+                        break;
+                    case 'cancel':
+                        endpoint = '/api/subscriptions/cancel';
+                        actionText = 'cancelling';
+                        break;
+                }
+
+                showLoading(` ${actionText} subscription...`);
+
+                const response = await fetch(`${API_BASE}${endpoint}`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        subscription_id: currentSubscriptionId
+                    })
+                });
+
+                const result = await response.json();
+
+                hideLoading();
+
+                if (result.success) {
+                    showNotification(`Subscription ${actionText} successful!`, 'success');
+                    closeModal();
+                    // Reload subscriptions to show updated status
+                    await loadSubscriptions();
+                } else {
+                    showNotification(`Failed to ${actionText} subscription: ${result.error}`, 'error');
+                }
+            } catch (error) {
+                hideLoading();
+                showNotification(`Error: ${error.message}`, 'error');
+            }
+        }
+
+        // Action functions
+        function pauseSubscription(subscriptionId) {
+            showModal('Pause Subscription', 'Are you sure you want to pause this subscription?', 'pause', subscriptionId);
+        }
+
+        function resumeSubscription(subscriptionId) {
+            showModal('Resume Subscription', 'Are you sure you want to resume this subscription?', 'resume', subscriptionId);
+        }
+
+        function skipPayment(subscriptionId) {
+            showModal('Skip Payment', 'Are you sure you want to skip the next payment?', 'skip', subscriptionId);
+        }
+
+        function cancelSubscription(subscriptionId) {
+            showModal('Cancel Subscription', 'Are you sure you want to cancel this subscription? This action cannot be undone.', 'cancel', subscriptionId);
+        }
+
+        function createNewSubscription() {
+            window.location.href = '/collections/all';
+        }
+
+        // Utility functions
+        function showNotification(message, type = 'info') {
+            const notification = document.createElement('div');
+            notification.className = `fixed top-4 right-4 p-4 rounded-lg text-white z-50 ${
+                type === 'success' ? 'bg-green-600' :
+                type === 'error' ? 'bg-red-600' :
+                type === 'warning' ? 'bg-yellow-600' : 'bg-blue-600'
+            }`;
+            notification.textContent = message;
+
+            document.body.appendChild(notification);
+
+            setTimeout(() => {
+                notification.remove();
+            }, 3000);
+        }
+
+        function showLoading(message) {
+            showNotification(message, 'info');
+        }
+
+        function hideLoading() {
+            // Hide loading notification if exists
+            const notifications = document.querySelectorAll('.fixed.top-4.right-4');
+            notifications.forEach(n => n.remove());
+        }
+
+        function showError(message) {
+            showNotification(message, 'error');
+        }
+    </script>
+</body>
+</html>
