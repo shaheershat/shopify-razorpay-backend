@@ -191,6 +191,87 @@ class SubscriptionProduct {
     }
   }
   
+  async createSubscription() {
+    try {
+      this.showNotification('Creating subscription...', 'info');
+      
+      const selectedVariant = this.getSelectedVariant();
+      if (!selectedVariant) {
+        this.showNotification('Please select a subscription plan', 'error');
+        return;
+      }
+
+      // Get subscription data from variant metafields
+      const frequency = selectedVariant.metafields?.custom?.frequency;
+      const razorpayPlanId = selectedVariant.metafields?.custom?.razorpay_plan_id;
+      const description = selectedVariant.metafields?.custom?.description;
+
+      if (!frequency || !razorpayPlanId) {
+        this.showNotification('Subscription plan not configured', 'error');
+        return;
+      }
+
+      // Create subscription via backend (bypass Shopify checkout)
+      const response = await fetch(`${this.apiBase}/api/create-subscription-direct`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          plan_id: razorpayPlanId,
+          customer_email: this.customerEmail,
+          customer_phone: this.customerPhone,
+          product_id: selectedVariant.id,
+          frequency: frequency.replace('months', ''),
+          product_title: selectedVariant.title,
+          product_description: description
+        })
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        // Open Razorpay subscription checkout directly
+        this.openRazorpaySubscriptionCheckout(result.subscription_id, result.key_id);
+      } else {
+        this.showNotification(`Failed to create subscription: ${result.error}`, 'error');
+      }
+    } catch (error) {
+      console.error('Subscription creation error:', error);
+      this.showNotification('Failed to create subscription', 'error');
+    }
+  }
+
+  openRazorpaySubscriptionCheckout(subscriptionId, keyId) {
+    const options = {
+      key: keyId,
+      subscription_id: subscriptionId,
+      name: 'Luvwish',
+      description: 'Monthly Subscription Plan',
+      image: '/favicon.ico',
+      handler: (response) => {
+        this.handleSubscriptionSuccess(response);
+      },
+      modal: {
+        ondismiss: () => {
+          this.showNotification('Subscription setup cancelled', 'warning');
+        }
+      }
+    };
+
+    const rzp = new Razorpay(options);
+    rzp.open();
+  }
+
+  handleSubscriptionSuccess(response) {
+    this.showNotification('Subscription created successfully!', 'success');
+    
+    // Redirect to subscription management page
+    setTimeout(() => {
+      window.location.href = '/pages/subscription-management';
+    }, 2000);
+  }
+  
   openRazorpayCheckout(order, subscriptionData) {
     const options = {
       key: this.razorpayKeyId,

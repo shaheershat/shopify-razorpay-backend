@@ -62,12 +62,24 @@
         </div>
         
         <!-- Action Buttons -->
-        <div class="flex gap-3">
-          <button id="addToCartBtn" class="flex-1 bg-blue-600 text-white py-3 rounded-lg font-semibold hover:bg-blue-700 transition-colors disabled:bg-gray-400" disabled>
-            Add to Cart
+        <div class="flex gap-4">
+          <!-- Normal Buy Now (for one-time purchase) -->
+          <button 
+            type="button"
+            class="flex-1 bg-gray-600 text-white py-3 px-6 rounded-lg font-semibold hover:bg-gray-700 transition-colors"
+            onclick="window.location.href='/cart/add?id={{ product.selected_or_first_available_variant.id }}&quantity=1'"
+          >
+            Buy Now (One-time)
           </button>
-          <button id="subscribeNowBtn" class="flex-1 bg-green-600 text-white py-3 rounded-lg font-semibold hover:bg-green-700 transition-colors disabled:bg-gray-400" disabled>
-            Subscribe Now
+          
+          <!-- Subscribe Button (for subscription) -->
+          <button 
+            type="button"
+            id="subscribeButton"
+            class="flex-1 bg-blue-600 text-white py-3 px-6 rounded-lg font-semibold hover:bg-blue-700 transition-colors"
+            onclick="subscriptionProduct.createSubscription()"
+          >
+            Subscribe with Auto-pay
           </button>
         </div>
       </div>

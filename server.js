@@ -68,6 +68,68 @@ app.post('/api/create-razorpay-order', async (req, res) => {
   }
 });
 
+// Create Direct Subscription (Bypass Shopify Checkout)
+app.post('/api/create-subscription-direct', async (req, res) => {
+  try {
+    const {
+      plan_id,
+      customer_email,
+      customer_phone,
+      product_id,
+      frequency,
+      product_title,
+      product_description
+    } = req.body;
+
+    console.log('Creating direct subscription:', req.body);
+
+    if (!plan_id || !customer_email) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Plan ID and customer email are required' 
+      });
+    }
+
+    // Create Razorpay subscription directly (no initial payment)
+    const subscription = await razorpay.subscriptions.create({
+      plan_id: plan_id,
+      customer_notify: 1,
+      quantity: 1,
+      total_count: parseInt(frequency),
+      start_at: Math.floor(Date.now() / 1000) + 60, // Start in 1 minute
+      expire_by: Math.floor(Date.now() / 1000) + (parseInt(frequency) * 30 * 24 * 60 * 60), // Expire after frequency months
+      email: customer_email,
+      phone: customer_phone,
+      notes: {
+        product_id: product_id,
+        product_title: product_title,
+        product_description: product_description,
+        shopify_store: process.env.SHOPIFY_STORE_NAME,
+        customer_email: customer_email,
+        customer_phone: customer_phone,
+        frequency: frequency
+      }
+    });
+
+    console.log('Direct subscription created:', subscription.id);
+
+    res.json({
+      success: true,
+      subscription_id: subscription.id,
+      key_id: process.env.RAZORPAY_KEY_ID,
+      status: subscription.status,
+      message: 'Subscription created - complete payment to activate'
+    });
+
+  } catch (error) {
+    console.error('Error creating direct subscription:', error);
+    res.status(400).json({ 
+      success: false, 
+      error: error.message 
+    });
+  }
+});
+
 // Get Customer Subscriptions
 app.post('/api/customer-subscriptions', async (req, res) => {
   try {
@@ -312,50 +374,37 @@ app.post('/api/subscriptions/cancel', async (req, res) => {
 });
 
 // Razorpay Webhook Handler
-app.post('/webhooks/razorpay', express.raw({type: 'application/json'}), async (req, res) => {
+app.post('/webhooks/razorpay', async (req, res) => {
   try {
-    const signature = req.headers['x-razorpay-signature'];
-    const body = req.body.toString();
+    const webhookSecret = process.env.RAZORPAY_WEBHOOK_SECRET;
+    const receivedSignature = req.headers['x-razorpay-signature'];
+    const webhookBody = JSON.stringify(req.body);
 
     // Verify webhook signature
-    const hash = crypto
-      .createHmac('sha256', process.env.RAZORPAY_WEBHOOK_SECRET)
-      .update(body)
+    const expectedSignature = crypto
+      .createHmac('sha256', webhookSecret)
+      .update(webhookBody)
       .digest('hex');
 
-    if (hash !== signature) {
-      return res.status(400).json({ error: 'Invalid signature' });
+    if (receivedSignature !== expectedSignature) {
+      console.error('Invalid webhook signature');
+      return res.status(400).json({ success: false, error: 'Invalid signature' });
     }
 
-    const event = JSON.parse(body);
+    const event = req.body.event;
+    const payload = req.body.payload;
 
-    console.log('Webhook Event:', event.event);
+    console.log('Webhook received:', event);
 
-    // Handle different events
-    switch(event.event) {
-      case 'subscription.paused':
-        console.log('Subscription paused:', event.payload.subscription.entity.id);
-        // Update your database
+    switch (event) {
+      case 'subscription.activated':
+        // Subscription activated - create Shopify order
+        await handleSubscriptionActivated(payload.subscription);
         break;
-
-      case 'subscription.resumed':
-        console.log('Subscription resumed:', event.payload.subscription.entity.id);
-        // Update your database
-        break;
-
-      case 'subscription.cancelled':
-        console.log('Subscription cancelled:', event.payload.subscription.entity.id);
-        // Update your database
-        break;
-
-      case 'subscription.halted':
-        console.log('Subscription halted:', event.payload.subscription.entity.id);
-        // Update your database
-        break;
-
+        
       case 'payment.authorized':
-        console.log('Payment authorized:', event.payload.payment.entity.id);
-        // Create order in Shopify
+        // Payment authorized - create Shopify order
+        await handlePaymentAuthorized(payload.payment);
         await createShopifyOrder(event.payload.subscription.entity);
         break;
 
