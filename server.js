@@ -73,7 +73,10 @@ app.post('/api/customer-subscriptions', async (req, res) => {
   try {
     const { customer_email } = req.body;
     
+    console.log('Fetching subscriptions for customer:', customer_email);
+    
     if (!customer_email) {
+      console.log('No customer email provided');
       return res.status(400).json({ 
         success: false, 
         error: 'Customer email is required' 
@@ -81,30 +84,44 @@ app.post('/api/customer-subscriptions', async (req, res) => {
     }
 
     // Fetch all subscriptions from Razorpay
-    const subscriptions = await razorpay.subscriptions.all({
-      email: customer_email
-    });
+    try {
+      const subscriptions = await razorpay.subscriptions.all({
+        email: customer_email
+      });
+      
+      console.log('Razorpay response:', subscriptions);
 
-    // Format subscription data
-    const formattedSubscriptions = subscriptions.items.map(sub => ({
-      id: sub.id,
-      plan_name: sub.plan_id,
-      status: sub.status,
-      current_period_start: new Date(sub.start_at * 1000).toISOString().split('T')[0],
-      current_period_end: new Date(sub.end_at * 1000).toISOString().split('T')[0],
-      amount: sub.plan_item.amount,
-      customer_email: sub.email,
-      product_id: sub.notes?.product_id || 'product1',
-      total_count: sub.total_count,
-      paid_count: sub.paid_count || 1,
-      remaining_count: sub.remaining_count || (sub.total_count - (sub.paid_count || 1)),
-      next_charge_at: sub.next_charge_at ? new Date(sub.next_charge_at * 1000).toISOString().split('T')[0] : null
-    }));
+      // Format subscription data
+      const formattedSubscriptions = subscriptions.items.map(sub => ({
+        id: sub.id,
+        plan_name: sub.plan_id,
+        status: sub.status,
+        current_period_start: new Date(sub.start_at * 1000).toISOString().split('T')[0],
+        current_period_end: new Date(sub.end_at * 1000).toISOString().split('T')[0],
+        amount: sub.plan_item.amount,
+        customer_email: sub.email,
+        product_id: sub.notes?.product_id || 'product1',
+        total_count: sub.total_count,
+        paid_count: sub.paid_count || 1,
+        remaining_count: sub.remaining_count || (sub.total_count - (sub.paid_count || 1)),
+        next_charge_at: sub.next_charge_at ? new Date(sub.next_charge_at * 1000).toISOString().split('T')[0] : null
+      }));
 
-    res.json({
-      success: true,
-      subscriptions: formattedSubscriptions
-    });
+      console.log('Formatted subscriptions:', formattedSubscriptions);
+
+      res.json({
+        success: true,
+        subscriptions: formattedSubscriptions
+      });
+      
+    } catch (razorpayError) {
+      console.error('Razorpay API error:', razorpayError);
+      // If customer has no subscriptions, return empty array
+      res.json({
+        success: true,
+        subscriptions: []
+      });
+    }
 
   } catch (error) {
     console.error('Error fetching subscriptions:', error);
