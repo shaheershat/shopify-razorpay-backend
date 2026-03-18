@@ -66,12 +66,15 @@ class SubscriptionProduct {
   }
   
   initializeButtons() {
-    const addToCartBtn = document.getElementById('addToCartBtn');
-    const subscribeNowBtn = document.getElementById('subscribeNowBtn');
-    const checkoutBtn = document.getElementById('checkoutBtn');
+    const subscribeBtn = document.getElementById('subscribeNowBtn');
+    if (subscribeBtn) {
+      subscribeBtn.addEventListener('click', () => {
+        console.log('Subscribe button clicked!');
+        this.createSubscription();
+      });
+    }
     
-    if (addToCartBtn) addToCartBtn.addEventListener('click', () => this.addToCart());
-    if (subscribeNowBtn) subscribeNowBtn.addEventListener('click', () => this.subscribeNow());
+    const checkoutBtn = document.getElementById('checkoutBtn');
     if (checkoutBtn) checkoutBtn.addEventListener('click', () => this.checkout());
     
     // Enable buttons when customer info is filled
