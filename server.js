@@ -78,7 +78,8 @@ app.post('/api/create-subscription-direct', async (req, res) => {
       product_id,
       frequency,
       product_title,
-      product_description
+      product_description,
+      amount
     } = req.body;
 
     console.log('Creating direct subscription (mandate flow):', req.body);
@@ -113,12 +114,28 @@ app.post('/api/create-subscription-direct', async (req, res) => {
 
     console.log('Direct subscription created:', subscription.id);
 
+    // Create a subscription order for checkout with correct amount
+    const order = await razorpay.orders.create({
+      amount: amount || 50000, // Default ₹500 if not provided (in paise)
+      currency: 'INR',
+      receipt: `subscription_${subscription.id}`,
+      payment_capture: 1,
+      notes: {
+        subscription_id: subscription.id,
+        is_subscription: true
+      }
+    });
+
+    console.log('Subscription order created:', order.id);
+
     res.json({
       success: true,
       subscription_id: subscription.id,
+      order_id: order.id,
+      amount: amount || 50000,
       key_id: process.env.RAZORPAY_KEY_ID,
       status: subscription.status,
-      message: 'Subscription created - complete payment to activate'
+      message: 'Subscription and order created - complete payment to activate'
     });
 
   } catch (error) {
@@ -126,6 +143,67 @@ app.post('/api/create-subscription-direct', async (req, res) => {
     res.status(400).json({ 
       success: false, 
       error: error.message 
+    });
+  }
+});
+
+// Verify Payment and Activate Subscription
+app.post('/api/verify-payment-and-activate', async (req, res) => {
+  try {
+    const {
+      razorpay_payment_id,
+      razorpay_order_id,
+      razorpay_signature,
+      subscription_id
+    } = req.body;
+
+    console.log('Verifying payment and activating subscription:', {
+      razorpay_payment_id,
+      razorpay_order_id,
+      subscription_id
+    });
+
+    // Verify payment signature
+    const body = `${razorpay_order_id}|${razorpay_payment_id}`;
+    const expectedSignature = crypto
+      .createHmac('sha256', process.env.RAZORPAY_SECRET_KEY)
+      .update(body.toString())
+      .digest('hex');
+
+    if (expectedSignature !== razorpay_signature) {
+      console.error('Invalid payment signature');
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid payment signature'
+      });
+    }
+
+    console.log('✅ Payment signature verified');
+
+    // Fetch payment details
+    const payment = await razorpay.payments.fetch(razorpay_payment_id);
+    console.log('Payment details:', payment);
+
+    // Fetch subscription details
+    const subscription = await razorpay.subscriptions.fetch(subscription_id);
+    console.log('Subscription details:', subscription);
+
+    // Create Shopify order (if needed)
+    // TODO: Add Shopify order creation logic here
+
+    res.json({
+      success: true,
+      message: 'Payment verified and subscription activated',
+      payment_id: razorpay_payment_id,
+      subscription_id: subscription_id,
+      subscription_status: subscription.status
+    });
+
+  } catch (error) {
+    console.error('Error verifying payment and activating subscription:', error);
+    res.status(400).json({
+      success: false,
+      error: error.message
     });
   }
 });

@@ -189,7 +189,8 @@ class SubscriptionProduct {
           product_id: this.selectedPlan.variantId,
           frequency: this.selectedPlan.frequency.replace('months', ''),
           product_title: this.selectedPlan.name,
-          product_description: this.selectedPlan.description
+          product_description: this.selectedPlan.description,
+          amount: Math.round(this.selectedPlan.price * 100) // Convert to paise
         })
       });
 
@@ -206,9 +207,9 @@ class SubscriptionProduct {
       console.log('📊 API response data:', result);
 
       if (result.success) {
-        console.log('✅ Subscription created, opening Razorpay subscription checkout...');
-        // Open Razorpay subscription checkout (mandate flow)
-        this.openRazorpaySubscriptionCheckout(result.subscription_id, result.key_id);
+        console.log('✅ Subscription created, opening Razorpay checkout...');
+        // Open Razorpay checkout with order (shows correct amount)
+        this.openRazorpayCheckout(result.order_id, result.subscription_id, result.key_id, result.amount);
       } else {
         console.error('❌ API error:', result.error);
         this.showNotification(`Failed to create subscription: ${result.error}`, 'error');
@@ -219,46 +220,94 @@ class SubscriptionProduct {
     }
   }
   
-  openRazorpaySubscriptionCheckout(subscriptionId, keyId) {
-    console.log('💳 Opening Razorpay subscription checkout with:', {
+  openRazorpayCheckout(orderId, subscriptionId, keyId, amount) {
+    console.log('💳 Opening Razorpay checkout with:', {
+      orderId,
       subscriptionId,
-      keyId
+      keyId,
+      amount,
+      selectedPlan: this.selectedPlan
     });
 
     const options = {
       key: keyId,
-      subscription_id: subscriptionId,
+      order_id: orderId,
       name: 'Luvwish Subscription',
-      description: 'Complete your subscription setup',
-      image: 'https://your-store.com/logo.png',
+      description: `${this.selectedPlan.name} - ${this.selectedPlan.description}`,
+      image: 'https://luvwish.in/cdn/shop/files/Logo_1_250x250.png',
+      amount: amount, // Amount in paise
+      currency: 'INR',
       handler: (response) => {
-        console.log('✅ Subscription completed:', response);
-        this.showNotification('Subscription activated successfully!', 'success');
+        console.log('✅ Payment completed:', response);
         
-        // Redirect to subscription management page after 2 seconds
-        setTimeout(() => {
-          window.location.href = '/pages/subscription-management';
-        }, 2000);
+        // Verify payment and activate subscription
+        this.verifyPaymentAndActivateSubscription(response.razorpay_payment_id, response.razorpay_order_id, response.razorpay_signature, subscriptionId);
       },
       modal: {
         ondismiss: () => {
-          console.log('❌ Subscription modal dismissed');
-          this.showNotification('Subscription setup cancelled', 'warning');
+          console.log('❌ Payment modal dismissed');
+          this.showNotification('Payment cancelled', 'warning');
         },
         escape: true,
         backdropclose: false
       },
       notes: {
         subscription_type: 'mandate',
-        flow: 'autopay'
+        flow: 'autopay',
+        plan_name: this.selectedPlan.name,
+        plan_price: this.selectedPlan.price,
+        variant_id: this.selectedPlan.variantId,
+        subscription_id: subscriptionId
+      },
+      theme: {
+        color: '#3399cc'
       }
     };
 
     console.log('🔧 Razorpay options:', options);
     
     const rzp = new Razorpay(options);
-    console.log('🚀 Opening Razorpay subscription modal...');
+    console.log('🚀 Opening Razorpay payment modal...');
     rzp.open();
+  }
+  
+  async verifyPaymentAndActivateSubscription(paymentId, orderId, signature, subscriptionId) {
+    try {
+      console.log('🔍 Verifying payment and activating subscription...');
+      
+      const response = await fetch(`${this.apiBase}/api/verify-payment-and-activate`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        },
+        mode: 'cors',
+        body: JSON.stringify({
+          razorpay_payment_id: paymentId,
+          razorpay_order_id: orderId,
+          razorpay_signature: signature,
+          subscription_id: subscriptionId
+        })
+      });
+
+      const result = await response.json();
+      
+      if (result.success) {
+        console.log('✅ Subscription activated successfully!');
+        this.showNotification('Subscription activated successfully!', 'success');
+        
+        // Redirect to subscription management page after 2 seconds
+        setTimeout(() => {
+          window.location.href = '/pages/subscription-management';
+        }, 2000);
+      } else {
+        console.error('❌ Failed to activate subscription:', result.error);
+        this.showNotification(`Failed to activate subscription: ${result.error}`, 'error');
+      }
+    } catch (error) {
+      console.error('❌ Payment verification error:', error);
+      this.showNotification('Payment verification failed', 'error');
+    }
   }
   
   showNotification(message, type = 'info') {
