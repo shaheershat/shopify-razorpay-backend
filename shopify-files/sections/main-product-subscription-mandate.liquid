@@ -38,62 +38,30 @@ console.log('🔥 API URL from settings: {{ settings.subscription_api_url | defa
           <div class="mb-6">
             <h3 class="text-lg font-semibold mb-3">Choose Subscription Plan</h3>
             <div class="space-y-3" id="subscriptionOptions">
-              <!-- 3 Months Plan -->
-              <div class="subscription-option border rounded-lg p-4 cursor-pointer hover:border-blue-500 transition-colors" 
-                   data-plan="3months" 
-                   data-variant-id="46513506189501" 
-                   data-plan-id="{{ product.metafields.subscription.plan_3_months_id }}" 
-                   data-price="{{ product.metafields.subscription.plan_3_months_price }}">
-                <div class="flex justify-between items-start mb-2">
-                  <h3 class="font-semibold text-lg">Monthly for 3 Months</h3>
-                  <span class="text-2xl font-bold text-blue-600">₹{{ product.metafields.subscription.plan_3_months_price | divided_by: 100 }}/month</span>
-                </div>
-                <p class="text-gray-600 text-sm mb-2">{{ product.metafields.subscription.plan_3_months_description }}</p>
-                <div class="flex items-center text-green-600 text-sm">
-                  <svg class="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
-                    <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l2-2z" clip-rule="evenodd"></path>
-                  </svg>
-                  Save {{ product.metafields.subscription.plan_3_months_discount }}% compared to one-time
-                </div>
-              </div>
-
-              <!-- 6 Months Plan -->
-              <div class="subscription-option border rounded-lg p-4 cursor-pointer hover:border-blue-500 transition-colors" 
-                   data-plan="6months" 
-                   data-variant-id="46513506222269" 
-                   data-plan-id="{{ product.metafields.subscription.plan_6_months_id }}" 
-                   data-price="{{ product.metafields.subscription.plan_6_months_price }}">
-                <div class="flex justify-between items-start mb-2">
-                  <h3 class="font-semibold text-lg">Monthly for 6 Months</h3>
-                  <span class="text-2xl font-bold text-blue-600">₹{{ product.metafields.subscription.plan_6_months_price | divided_by: 100 }}/month</span>
-                </div>
-                <p class="text-gray-600 text-sm mb-2">{{ product.metafields.subscription.plan_6_months_description }}</p>
-                <div class="flex items-center text-green-600 text-sm">
-                  <svg class="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
-                    <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l2-2z" clip-rule="evenodd"></path>
-                  </svg>
-                  Save {{ product.metafields.subscription.plan_6_months_discount }}% compared to one-time
-                </div>
-              </div>
-
-              <!-- 12 Months Plan -->
-              <div class="subscription-option border rounded-lg p-4 cursor-pointer hover:border-blue-500 transition-colors" 
-                   data-plan="12months" 
-                   data-variant-id="46513506255037" 
-                   data-plan-id="{{ product.metafields.subscription.plan_12_months_id }}" 
-                   data-price="{{ product.metafields.subscription.plan_12_months_price }}">
-                <div class="flex justify-between items-start mb-2">
-                  <h3 class="font-semibold text-lg">Monthly for 12 Months</h3>
-                  <span class="text-2xl font-bold text-blue-600">₹{{ product.metafields.subscription.plan_12_months_price | divided_by: 100 }}/month</span>
-                </div>
-                <p class="text-gray-600 text-sm mb-2">{{ product.metafields.subscription.plan_12_months_description }}</p>
-                <div class="flex items-center text-green-600 text-sm">
-                  <svg class="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
-                    <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l2-2z" clip-rule="evenodd"></path>
-                  </svg>
-                  Save {{ product.metafields.subscription.plan_12_months_discount }}% compared to one-time
-                </div>
-              </div>
+              {%- for variant in product.variants -%}
+                {%- assign frequency = variant.metafields.custom.frequency -%}
+                {%- assign plan_id = variant.metafields.custom.razorpay_plan_id -%}
+                {%- if frequency and plan_id -%}
+                  <div class="subscription-option border rounded-lg p-4 cursor-pointer hover:border-blue-500 transition-colors" 
+                       data-plan="{{ frequency }}"
+                       data-variant-id="{{ variant.id }}"
+                       data-plan-id="{{ plan_id }}"
+                       data-price="{{ variant.price | divided_by: 100 }}">
+                    <div class="flex justify-between items-center">
+                      <div>
+                        <h4 class="font-semibold">{{ variant.title }}</h4>
+                        <p class="text-sm text-gray-600">{{ variant.metafields.custom.description }}</p>
+                      </div>
+                      <div class="text-right">
+                        <p class="text-xl font-bold">{{ variant.price | money }}/month</p>
+                        {%- if variant.compare_at_price > variant.price -%}
+                          <p class="text-sm text-green-600">Save {{ variant.compare_at_price | minus: variant.price | money }}</p>
+                        {%- endif -%}
+                      </div>
+                    </div>
+                  </div>
+                {%- endif -%}
+              {%- endfor -%}
             </div>
           </div>
         {%- endif -%}
@@ -114,7 +82,10 @@ console.log('🔥 API URL from settings: {{ settings.subscription_api_url | defa
         
         <!-- Action Buttons -->
         <div class="flex gap-3">
-          <button id="subscribeNowBtn" class="flex-1 bg-blue-600 text-white py-3 rounded-lg font-semibold hover:bg-blue-700 transition-colors disabled:bg-gray-400" disabled>
+          <button id="addToCartBtn" class="flex-1 bg-blue-600 text-white py-3 rounded-lg font-semibold hover:bg-blue-700 transition-colors disabled:bg-gray-400" disabled>
+            Add to Cart
+          </button>
+          <button id="subscribeNowBtn" class="flex-1 bg-green-600 text-white py-3 rounded-lg font-semibold hover:bg-green-700 transition-colors disabled:bg-gray-400" disabled>
             Subscribe with Auto-pay (Mandate)
           </button>
         </div>
