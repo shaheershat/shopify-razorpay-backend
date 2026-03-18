@@ -234,6 +234,8 @@ class SubscriptionProduct {
   }
   
   createIsolatedRazorpayCheckout(orderId, subscriptionId, keyId, amount) {
+    console.log('🔄 Creating isolated Razorpay checkout...');
+    
     // Remove all existing Razorpay scripts and instances
     const existingScripts = document.querySelectorAll('script[src*="razorpay"]');
     existingScripts.forEach(script => script.remove());
@@ -250,20 +252,28 @@ class SubscriptionProduct {
     
     script.onload = () => {
       console.log('🔄 Fresh Razorpay SDK loaded');
+      console.log('🔍 Razorpay available:', typeof Razorpay !== 'undefined');
       this.initializeCleanRazorpayCheckout(orderId, subscriptionId, keyId, amount);
     };
     
-    script.onerror = () => {
-      console.error('❌ Failed to load Razorpay SDK');
+    script.onerror = (error) => {
+      console.error('❌ Failed to load Razorpay SDK:', error);
       this.showNotification('Failed to load payment gateway', 'error');
     };
     
     document.head.appendChild(script);
+    console.log('📦 Razorpay script added to head');
   }
   
   initializeCleanRazorpayCheckout(orderId, subscriptionId, keyId, amount) {
+    console.log('🔧 Initializing clean Razorpay checkout...');
+    
     // Wait a moment for Razorpay to fully initialize
     setTimeout(() => {
+      console.log('🔍 Checking Razorpay availability...');
+      console.log('🔍 typeof Razorpay:', typeof Razorpay);
+      console.log('🔍 window.Razorpay:', window.Razorpay);
+      
       if (typeof Razorpay === 'undefined') {
         console.error('❌ Razorpay not available after reload');
         this.showNotification('Payment gateway not available', 'error');
@@ -319,17 +329,33 @@ class SubscriptionProduct {
       };
 
       console.log('🔧 Clean Razorpay options:', options);
+      console.log('🔍 Creating Razorpay instance...');
       
       try {
         // Create new Razorpay instance with fresh options
         const rzp = new Razorpay(options);
+        console.log('✅ Razorpay instance created successfully');
         console.log('🚀 Opening clean Razorpay payment modal...');
+        
+        // Force open the modal
         rzp.open();
+        
+        // Add fallback check
+        setTimeout(() => {
+          const modal = document.querySelector('.razorpay-container');
+          if (modal) {
+            console.log('✅ Razorpay modal is visible');
+          } else {
+            console.warn('⚠️ Razorpay modal not visible, trying again...');
+            rzp.open();
+          }
+        }, 1000);
+        
       } catch (error) {
         console.error('❌ Error opening Razorpay:', error);
-        this.showNotification('Failed to open payment gateway', 'error');
+        this.showNotification(`Failed to open payment gateway: ${error.message}`, 'error');
       }
-    }, 500);
+    }, 1000); // Increased timeout to ensure full initialization
   }
   
   async verifyPaymentAndActivateSubscription(paymentId, orderId, signature, subscriptionId) {
