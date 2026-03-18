@@ -1,0 +1,100 @@
+{{ 'subscription-product.css' | asset_url | stylesheet_tag }}
+{{ 'subscription-product.js' | asset_url | script_tag }}
+
+<div class="container mx-auto px-4 py-8">
+  <!-- Product Header -->
+  <div class="bg-white rounded-lg shadow-lg p-6 mb-6">
+    <div class="flex flex-col md:flex-row gap-6">
+      <div class="md:w-1/2">
+        {% if product.featured_image %}
+          <img src="{{ product.featured_image | img_url: 'large' }}" alt="{{ product.featured_image.alt }}" class="w-full rounded-lg">
+        {% endif %}
+      </div>
+      <div class="md:w-1/2">
+        <h1 class="text-3xl font-bold mb-4">{{ product.title }}</h1>
+        <p class="text-gray-600 mb-6">{{ product.description }}</p>
+        
+        <!-- Subscription Options -->
+        {% if product.tags contains 'subscription' %}
+          <div class="mb-6">
+            <h3 class="text-lg font-semibold mb-3">Choose Subscription Plan</h3>
+            <div class="space-y-3" id="subscriptionOptions">
+              {% for variant in product.variants %}
+                {% assign frequency = variant.metafields.custom.frequency %}
+                {% assign plan_id = variant.metafields.custom.razorpay_plan_id %}
+                {% if frequency and plan_id %}
+                  <div class="subscription-option border rounded-lg p-4 cursor-pointer hover:border-blue-500 transition-colors" 
+                       data-plan="{{ frequency }}"
+                       data-variant-id="{{ variant.id }}"
+                       data-plan-id="{{ plan_id }}"
+                       data-price="{{ variant.price | divided_by: 100 }}">
+                    <div class="flex justify-between items-center">
+                      <div>
+                        <h4 class="font-semibold">{{ variant.title }}</h4>
+                        <p class="text-sm text-gray-600">{{ variant.metafields.custom.description }}</p>
+                      </div>
+                      <div class="text-right">
+                        <p class="text-xl font-bold">{{ variant.price | money }}/month</p>
+                        {% if variant.compare_at_price > variant.price %}
+                          <p class="text-sm text-green-600">Save {{ variant.compare_at_price | minus: variant.price | money }}</p>
+                        {% endif %}
+                      </div>
+                    </div>
+                  </div>
+                {% endif %}
+              {% endfor %}
+            </div>
+          </div>
+        {% endif %}
+        
+        <!-- Customer Information -->
+        <div class="mb-6">
+          <h3 class="text-lg font-semibold mb-3">Customer Information</h3>
+          <div class="space-y-3">
+            {% if customer %}
+              <input type="email" id="customerEmail" value="{{ customer.email }}" placeholder="Email Address" class="w-full border rounded-lg px-4 py-2" readonly>
+              <input type="tel" id="customerPhone" value="{{ customer.phone }}" placeholder="Phone Number" class="w-full border rounded-lg px-4 py-2" {% if customer.phone %}readonly{% endif %}>
+            {% else %}
+              <input type="email" id="customerEmail" placeholder="Email Address" class="w-full border rounded-lg px-4 py-2" required>
+              <input type="tel" id="customerPhone" placeholder="Phone Number" class="w-full border rounded-lg px-4 py-2" required>
+            {% endif %}
+          </div>
+        </div>
+        
+        <!-- Action Buttons -->
+        <div class="flex gap-3">
+          <button id="addToCartBtn" class="flex-1 bg-blue-600 text-white py-3 rounded-lg font-semibold hover:bg-blue-700 transition-colors disabled:bg-gray-400" disabled>
+            Add to Cart
+          </button>
+          <button id="subscribeNowBtn" class="flex-1 bg-green-600 text-white py-3 rounded-lg font-semibold hover:bg-green-700 transition-colors disabled:bg-gray-400" disabled>
+            Subscribe Now
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <!-- Cart Summary -->
+  <div id="cartSummary" class="bg-white rounded-lg shadow-lg p-6 hidden">
+    <h3 class="text-xl font-bold mb-4">Cart Summary</h3>
+    <div id="cartItems"></div>
+    <div class="border-t pt-4 mt-4">
+      <div class="flex justify-between font-bold text-lg">
+        <span>Total:</span>
+        <span id="totalAmount">{{ cart.total_price | money }}</span>
+      </div>
+      <button id="checkoutBtn" class="w-full bg-blue-600 text-white py-3 rounded-lg font-semibold hover:bg-blue-700 transition-colors mt-4">
+        Proceed to Checkout
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Hidden configuration -->
+<script>
+  window.subscriptionConfig = {
+    apiBase: '{{ settings.subscription_api_url }}',
+    razorpayKeyId: '{{ settings.razorpay_key_id }}',
+    customerId: {% if customer %}'{{ customer.id }}'{% else %}null{% endif %}
+  };
+</script>

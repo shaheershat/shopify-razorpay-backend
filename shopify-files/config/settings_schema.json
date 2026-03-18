@@ -1,0 +1,57 @@
+{
+  "name": "Subscription System",
+  "settings": [
+    {
+      "type": "header",
+      "content": "Razorpay Configuration"
+    },
+    {
+      "type": "text",
+      "id": "razorpay_key_id",
+      "label": "Razorpay Key ID",
+      "info": "Your Razorpay public key ID",
+      "default": "rzp_live_SQfuiRsuG1eqca"
+    },
+    {
+      "type": "text",
+      "id": "subscription_api_url",
+      "label": "Subscription API URL",
+      "info": "Your backend API URL for subscription management",
+      "default": "https://shopify-razorpay-backend-production.up.railway.app"
+    },
+    {
+      "type": "header",
+      "content": "Subscription Settings"
+    },
+    {
+      "type": "checkbox",
+      "id": "enable_subscriptions",
+      "label": "Enable Subscriptions",
+      "default": true
+    },
+    {
+      "type": "checkbox",
+      "id": "show_subscription_management",
+      "label": "Show Subscription Management in Customer Account",
+      "default": true
+    },
+    {
+      "type": "header",
+      "content": "Product Settings"
+    },
+    {
+      "type": "text",
+      "id": "subscription_product_tag",
+      "label": "Subscription Product Tag",
+      "info": "Products with this tag will show subscription options",
+      "default": "subscription"
+    },
+    {
+      "type": "text",
+      "id": "subscription_page_handle",
+      "label": "Subscription Management Page Handle",
+      "info": "The URL handle for the subscription management page",
+      "default": "subscription-management"
+    }
+  ]
+}
