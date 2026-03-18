@@ -9,41 +9,37 @@ class SubscriptionProduct {
     this.selectedPlan = null;
     this.cart = [];
     
-    // Check if Razorpay is loaded
+    // Wait for Razorpay SDK to load
+    setTimeout(() => {
+      this.checkRazorpaySDK();
+    }, 1000);
+  }
+  
+  checkRazorpaySDK() {
     if (typeof Razorpay === 'undefined') {
       console.error('❌ Razorpay SDK not loaded');
       this.showNotification('Payment gateway not available', 'error');
     } else {
       console.log('✅ Razorpay SDK loaded');
+      this.init();
     }
-    
-    this.init();
   }
   
   init() {
     this.initializeSubscriptionOptions();
     this.initializeButtons();
-    this.loadRazorpayScript();
-  }
-  
-  loadRazorpayScript() {
-    if (!document.getElementById('razorpay-script')) {
-      const script = document.createElement('script');
-      script.id = 'razorpay-script';
-      script.src = 'https://checkout.razorpay.com/v1/checkout.js';
-      script.async = true;
-      document.head.appendChild(script);
-    }
+    this.updateButtonStates();
   }
   
   initializeSubscriptionOptions() {
     const options = document.querySelectorAll('.subscription-option');
+    
     options.forEach(option => {
-      option.addEventListener('click', () => this.selectSubscriptionOption(option));
+      option.addEventListener('click', () => this.selectPlan(option));
     });
   }
   
-  selectSubscriptionOption(option) {
+  selectPlan(option) {
     // Remove previous selection
     document.querySelectorAll('.subscription-option').forEach(opt => {
       opt.classList.remove('border-blue-500', 'bg-blue-50');
