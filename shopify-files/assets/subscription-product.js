@@ -193,10 +193,14 @@ class SubscriptionProduct {
   
   async createSubscription() {
     try {
+      console.log('🚀 Starting subscription creation...');
       this.showNotification('Creating subscription...', 'info');
       
       const selectedVariant = this.getSelectedVariant();
+      console.log('📦 Selected variant:', selectedVariant);
+      
       if (!selectedVariant) {
+        console.error('❌ No variant selected');
         this.showNotification('Please select a subscription plan', 'error');
         return;
       }
@@ -206,12 +210,35 @@ class SubscriptionProduct {
       const razorpayPlanId = selectedVariant.metafields?.custom?.razorpay_plan_id;
       const description = selectedVariant.metafields?.custom?.description;
 
+      console.log('🔍 Metafields data:', {
+        frequency,
+        razorpayPlanId,
+        description
+      });
+
       if (!frequency || !razorpayPlanId) {
+        console.error('❌ Missing metafields');
         this.showNotification('Subscription plan not configured', 'error');
         return;
       }
 
+      // Get customer info
+      const customerEmail = document.getElementById('customerEmail')?.value;
+      const customerPhone = document.getElementById('customerPhone')?.value;
+      
+      console.log('👤 Customer info:', {
+        email: customerEmail,
+        phone: customerPhone
+      });
+
+      if (!customerEmail) {
+        console.error('❌ No customer email');
+        this.showNotification('Please enter your email', 'error');
+        return;
+      }
+
       // Create subscription via backend (bypass Shopify checkout)
+      console.log('🌐 Calling backend API...');
       const response = await fetch(`${this.apiBase}/api/create-subscription-direct`, {
         method: 'POST',
         headers: {
@@ -219,30 +246,39 @@ class SubscriptionProduct {
         },
         body: JSON.stringify({
           plan_id: razorpayPlanId,
-          customer_email: this.customerEmail,
-          customer_phone: this.customerPhone,
+          customer_email: customerEmail,
+          customer_phone: customerPhone || '',
           product_id: selectedVariant.id,
           frequency: frequency.replace('months', ''),
           product_title: selectedVariant.title,
-          product_description: description
+          product_description: description || ''
         })
       });
 
+      console.log('📡 API response status:', response.status);
       const result = await response.json();
+      console.log('📊 API response data:', result);
 
       if (result.success) {
+        console.log('✅ Subscription created, opening Razorpay checkout...');
         // Open Razorpay subscription checkout directly
         this.openRazorpaySubscriptionCheckout(result.subscription_id, result.key_id);
       } else {
+        console.error('❌ API error:', result.error);
         this.showNotification(`Failed to create subscription: ${result.error}`, 'error');
       }
     } catch (error) {
-      console.error('Subscription creation error:', error);
+      console.error('❌ Subscription creation error:', error);
       this.showNotification('Failed to create subscription', 'error');
     }
   }
 
   openRazorpaySubscriptionCheckout(subscriptionId, keyId) {
+    console.log('💳 Opening Razorpay checkout with:', {
+      subscriptionId,
+      keyId
+    });
+
     const options = {
       key: keyId,
       subscription_id: subscriptionId,
@@ -250,17 +286,32 @@ class SubscriptionProduct {
       description: 'Monthly Subscription Plan',
       image: '/favicon.ico',
       handler: (response) => {
+        console.log('✅ Razorpay success response:', response);
         this.handleSubscriptionSuccess(response);
       },
       modal: {
         ondismiss: () => {
+          console.log('❌ Razorpay checkout dismissed');
           this.showNotification('Subscription setup cancelled', 'warning');
-        }
+        },
+        escape: true,
+        backdropclose: false
+      },
+      theme: {
+        color: '#2563eb'
       }
     };
 
-    const rzp = new Razorpay(options);
-    rzp.open();
+    console.log('🔧 Razorpay options:', options);
+
+    try {
+      const rzp = new Razorpay(options);
+      console.log('🚀 Opening Razorpay modal...');
+      rzp.open();
+    } catch (error) {
+      console.error('❌ Razorpay error:', error);
+      this.showNotification('Failed to open payment gateway', 'error');
+    }
   }
 
   handleSubscriptionSuccess(response) {
