@@ -99,14 +99,14 @@ app.post('/api/create-subscription-direct', async (req, res) => {
       start_at: Math.floor(Date.now() / 1000) + 60, // Start in 1 minute
       expire_by: Math.floor(Date.now() / 1000) + (parseInt(frequency) * 30 * 24 * 60 * 60), // Expire after frequency months
       email: customer_email,
-      phone: customer_phone,
+      // phone: customer_phone, // Remove phone field as it's causing error
       notes: {
         product_id: product_id,
         product_title: product_title,
         product_description: product_description,
         shopify_store: process.env.SHOPIFY_STORE_NAME,
         customer_email: customer_email,
-        customer_phone: customer_phone,
+        customer_phone: customer_phone, // Store in notes instead
         frequency: frequency
       }
     });
