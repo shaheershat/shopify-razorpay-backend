@@ -5,8 +5,7 @@ class SubscriptionProduct {
   constructor() {
     console.log('🔥 SubscriptionProduct constructor called!');
     
-    // Test with local server first
-    this.apiBase = 'http://localhost:8080'; // Use local server for testing
+    this.apiBase = window.subscriptionConfig?.apiBase || 'https://shopify-razorpay-backend-production.up.railway.app';
     this.razorpayKeyId = window.subscriptionConfig?.razorpay_key_id || 'rzp_live_SSfTeiwakEqpU0';
     this.customerEmail = window.subscriptionConfig?.customerEmail;
     this.customerPhone = window.subscriptionConfig?.customerPhone;
@@ -20,10 +19,25 @@ class SubscriptionProduct {
     this.selectedPlan = null;
     this.cart = [];
     
+    // Test backend connection first
+    this.testBackendConnection();
+    
     // Wait for Razorpay SDK to load
     setTimeout(() => {
       this.checkRazorpaySDK();
     }, 1000);
+  }
+  
+  async testBackendConnection() {
+    try {
+      console.log('🔥 Testing backend connection...');
+      const response = await fetch(`${this.apiBase}/health`);
+      const data = await response.json();
+      console.log('✅ Backend connection successful:', data);
+    } catch (error) {
+      console.error('❌ Backend connection failed:', error);
+      this.showNotification('Backend server not accessible. Please try again.', 'error');
+    }
   }
   
   checkRazorpaySDK() {
@@ -160,11 +174,14 @@ class SubscriptionProduct {
 
       // Create subscription via backend (mandate flow - no initial payment)
       console.log('🌐 Calling backend API for mandate flow...');
+      
       const response = await fetch(`${this.apiBase}/api/create-subscription-direct`, {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
         },
+        mode: 'cors',
         body: JSON.stringify({
           plan_id: this.selectedPlan.planId,
           customer_email: customerEmail,
@@ -177,6 +194,14 @@ class SubscriptionProduct {
       });
 
       console.log('📡 API response status:', response.status);
+      console.log('📡 API response headers:', response.headers);
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('❌ API error response:', errorText);
+        throw new Error(`API Error: ${response.status} - ${errorText}`);
+      }
+
       const result = await response.json();
       console.log('📊 API response data:', result);
 
@@ -190,7 +215,7 @@ class SubscriptionProduct {
       }
     } catch (error) {
       console.error('❌ Subscription creation error:', error);
-      this.showNotification('Failed to create subscription', 'error');
+      this.showNotification(`Failed to create subscription: ${error.message}`, 'error');
     }
   }
   
