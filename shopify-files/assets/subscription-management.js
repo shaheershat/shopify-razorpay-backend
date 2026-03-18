@@ -21,9 +21,25 @@ class SubscriptionManagement {
     try {
       this.showLoading();
       
-      // In a real implementation, you'd get customer ID from Shopify customer session
-      // For now, we'll simulate loading subscriptions
-      await this.simulateLoadingSubscriptions();
+      // Load real subscriptions from backend
+      const response = await fetch(`${this.apiBase}/api/customer-subscriptions`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          customer_email: this.customerEmail
+        })
+      });
+      
+      const result = await response.json();
+      
+      if (result.success) {
+        this.subscriptions = result.subscriptions || [];
+      } else {
+        console.error('Failed to load subscriptions:', result.error);
+        this.subscriptions = [];
+      }
       
       this.renderSubscriptions();
       this.hideLoading();
@@ -32,42 +48,6 @@ class SubscriptionManagement {
       this.showError('Failed to load subscriptions');
       this.hideLoading();
     }
-  }
-  
-  async simulateLoadingSubscriptions() {
-    // Simulate API call delay
-    await new Promise(resolve => setTimeout(resolve, 1500));
-    
-    // Mock data for demonstration
-    // In production, you'd have an endpoint to fetch customer subscriptions
-    this.subscriptions = [
-      {
-        id: 'sub_123456789',
-        plan_name: 'Monthly for 3 Months',
-        status: 'active',
-        current_period_start: '2024-03-01',
-        current_period_end: '2024-04-01',
-        amount: 999,
-        customer_email: this.customerEmail || 'customer@example.com',
-        product_id: 'product1',
-        total_count: 3,
-        paid_count: 1,
-        remaining_count: 2
-      },
-      {
-        id: 'sub_987654321',
-        plan_name: 'Monthly for 6 Months',
-        status: 'paused',
-        current_period_start: '2024-02-15',
-        current_period_end: '2024-03-15',
-        amount: 949,
-        customer_email: this.customerEmail || 'customer@example.com',
-        product_id: 'product2',
-        total_count: 6,
-        paid_count: 2,
-        remaining_count: 4
-      }
-    ];
   }
   
   renderSubscriptions() {
@@ -103,6 +83,9 @@ class SubscriptionManagement {
       'completed': 'Completed'
     };
 
+    const progressPercentage = (subscription.paid_count / subscription.total_count) * 100;
+    const nextPaymentDate = subscription.next_charge_at ? this.formatDate(subscription.next_charge_at) : 'N/A';
+
     return `
       <div class="bg-white rounded-lg shadow-lg p-6">
         <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
@@ -114,13 +97,13 @@ class SubscriptionManagement {
               </span>
             </div>
             
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm mb-4">
               <div>
                 <p class="text-gray-600">Subscription ID:</p>
                 <p class="font-medium">${subscription.id}</p>
               </div>
               <div>
-                <p class="text-gray-600">Amount:</p>
+                <p class="text-gray-600">Monthly Amount:</p>
                 <p class="font-medium">₹${subscription.amount}/month</p>
               </div>
               <div>
@@ -128,21 +111,34 @@ class SubscriptionManagement {
                 <p class="font-medium">${this.formatDate(subscription.current_period_start)} - ${this.formatDate(subscription.current_period_end)}</p>
               </div>
               <div>
-                <p class="text-gray-600">Progress:</p>
-                <p class="font-medium">${subscription.paid_count}/${subscription.total_count} payments</p>
+                <p class="text-gray-600">Next Payment:</p>
+                <p class="font-medium">${nextPaymentDate}</p>
               </div>
+              <div>
+                <p class="text-gray-600">Progress:</p>
+                <p class="font-medium">${subscription.paid_count}/${subscription.total_count} payments completed</p>
+              </div>
+              <div>
+                <p class="text-gray-600">Customer Email:</p>
+                <p class="font-medium">${subscription.customer_email}</p>
+              </div>
+            </div>
+            
+            <!-- Progress Bar -->
+            <div class="mb-4">
+              <div class="flex justify-between text-sm text-gray-600 mb-1">
+                <span>Subscription Progress</span>
+                <span>${Math.round(progressPercentage)}%</span>
+              </div>
+              <div class="w-full bg-gray-200 rounded-full h-3">
+                <div class="bg-blue-600 h-3 rounded-full transition-all duration-300" style="width: ${progressPercentage}%"></div>
+              </div>
+              <p class="text-xs text-gray-500 mt-1">${subscription.remaining_count} payments remaining</p>
             </div>
           </div>
           
           <div class="flex flex-col gap-2 min-w-[150px]">
             ${this.getActionButtons(subscription)}
-          </div>
-        </div>
-        
-        <!-- Progress Bar -->
-        <div class="mt-4">
-          <div class="w-full bg-gray-200 rounded-full h-2">
-            <div class="bg-blue-600 h-2 rounded-full" style="width: ${(subscription.paid_count / subscription.total_count) * 100}%"></div>
           </div>
         </div>
       </div>

@@ -68,6 +68,53 @@ app.post('/api/create-razorpay-order', async (req, res) => {
   }
 });
 
+// Get Customer Subscriptions
+app.post('/api/customer-subscriptions', async (req, res) => {
+  try {
+    const { customer_email } = req.body;
+    
+    if (!customer_email) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Customer email is required' 
+      });
+    }
+
+    // Fetch all subscriptions from Razorpay
+    const subscriptions = await razorpay.subscriptions.all({
+      email: customer_email
+    });
+
+    // Format subscription data
+    const formattedSubscriptions = subscriptions.items.map(sub => ({
+      id: sub.id,
+      plan_name: sub.plan_id,
+      status: sub.status,
+      current_period_start: new Date(sub.start_at * 1000).toISOString().split('T')[0],
+      current_period_end: new Date(sub.end_at * 1000).toISOString().split('T')[0],
+      amount: sub.plan_item.amount,
+      customer_email: sub.email,
+      product_id: sub.notes?.product_id || 'product1',
+      total_count: sub.total_count,
+      paid_count: sub.paid_count || 1,
+      remaining_count: sub.remaining_count || (sub.total_count - (sub.paid_count || 1)),
+      next_charge_at: sub.next_charge_at ? new Date(sub.next_charge_at * 1000).toISOString().split('T')[0] : null
+    }));
+
+    res.json({
+      success: true,
+      subscriptions: formattedSubscriptions
+    });
+
+  } catch (error) {
+    console.error('Error fetching subscriptions:', error);
+    res.status(400).json({ 
+      success: false, 
+      error: error.message 
+    });
+  }
+});
+
 // Create Subscription
 app.post('/api/create-subscription', async (req, res) => {
   try {
