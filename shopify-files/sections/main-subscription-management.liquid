@@ -62,10 +62,13 @@
   <!-- Hidden configuration -->
   <script>
     window.subscriptionConfig = {
-      apiBase: '{{ settings.subscription_api_url }}',
+      apiBase: '{{ settings.subscription_api_url | default: "https://shopify-razorpay-backend-production.up.railway.app" }}',
       customerId: '{{ customer.id }}',
       customerEmail: '{{ customer.email }}'
     };
+    
+    // Debug: Log configuration
+    console.log('Subscription Management Config:', window.subscriptionConfig);
   </script>
 {%- endunless -%}
 

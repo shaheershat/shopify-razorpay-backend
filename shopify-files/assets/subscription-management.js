@@ -21,6 +21,19 @@ class SubscriptionManagement {
     try {
       this.showLoading();
       
+      // Debug: Check configuration
+      console.log('Loading subscriptions with config:', {
+        apiBase: this.apiBase,
+        customerEmail: this.customerEmail
+      });
+      
+      if (!this.customerEmail) {
+        console.error('No customer email found');
+        this.showError('Customer email not found');
+        this.hideLoading();
+        return;
+      }
+      
       // Load real subscriptions from backend
       const response = await fetch(`${this.apiBase}/api/customer-subscriptions`, {
         method: 'POST',
@@ -32,10 +45,14 @@ class SubscriptionManagement {
         })
       });
       
+      console.log('API Response Status:', response.status);
+      
       const result = await response.json();
+      console.log('API Response Data:', result);
       
       if (result.success) {
         this.subscriptions = result.subscriptions || [];
+        console.log('Subscriptions loaded:', this.subscriptions.length);
       } else {
         console.error('Failed to load subscriptions:', result.error);
         this.subscriptions = [];
@@ -45,7 +62,7 @@ class SubscriptionManagement {
       this.hideLoading();
     } catch (error) {
       console.error('Error loading subscriptions:', error);
-      this.showError('Failed to load subscriptions');
+      this.showError('Failed to load subscriptions: ' + error.message);
       this.hideLoading();
     }
   }
