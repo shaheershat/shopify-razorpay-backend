@@ -90,22 +90,50 @@ app.post('/api/create-subscription', async (req, res) => {
       });
     }
 
-    // Create subscription
+    // Create subscription with auto-pay enabled
     const subscription = await razorpay.subscriptions.create({
       plan_id: plan_id,
       customer_notify: 1,
       quantity: 1,
       total_count: parseInt(frequency),
+      start_at: Math.floor(Date.now() / 1000) + 30, // Start in 30 seconds
+      expire_by: Math.floor(Date.now() / 1000) + (parseInt(frequency) * 30 * 24 * 60 * 60), // Expire after frequency months
       email: customer_email,
       phone: customer_phone,
       notes: {
         product_id: product_id,
-        shopify_store: process.env.SHOPIFY_STORE_NAME
+        shopify_store: process.env.SHOPIFY_STORE_NAME,
+        customer_email: customer_email,
+        customer_phone: customer_phone
       }
     });
 
-    // Create order in Shopify (optional - you can implement this)
-    // const shopifyOrder = await createShopifyOrder(...);
+    // Create order in Shopify immediately for the first payment
+    try {
+      const shopifyOrder = await createShopifyOrder({
+        id: subscription.id,
+        plan_id: plan_id,
+        email: customer_email,
+        phone: customer_phone,
+        notes: {
+          product_id: product_id,
+          customer_email: customer_email,
+          customer_phone: customer_phone,
+          address: '',
+          city: '',
+          state: '',
+          postal_code: ''
+        },
+        customer: {
+          name: customer_email
+        },
+        charge_at: payment.amount
+      });
+      console.log('Initial Shopify order created:', shopifyOrder.id);
+    } catch (shopifyError) {
+      console.error('Shopify order creation failed:', shopifyError);
+      // Continue even if Shopify order fails
+    }
 
     res.json({
       success: true,
@@ -303,7 +331,7 @@ async function createShopifyOrder(subscriptionData) {
           }
         ],
         note: `Subscription ID: ${subscriptionData.id} | Plan: ${subscriptionData.plan_id}`,
-        tags: ['subscription', 'razorpay', subscriptionData.status],
+        tags: ['subscription', 'razorpay', 'active'],
         shipping_address: {
           first_name: subscriptionData.customer?.name?.split(' ')[0] || 'Customer',
           last_name: subscriptionData.customer?.name?.split(' ')[1] || 'Name',
@@ -334,8 +362,12 @@ async function createShopifyOrder(subscriptionData) {
 
 // Helper function to get variant ID from product ID
 function getVariantId(productId) {
-  // In a real implementation, you'd fetch this from Shopify
-  // For now, return a default variant ID
+  // Use the actual variant ID passed from frontend
+  if (productId && productId.toString().length > 10) {
+    return productId; // It's already a variant ID
+  }
+  
+  // Fallback to product ID mapping
   const variantMap = {
     'product1': '1234567890123',
     'product2': '1234567890124',
