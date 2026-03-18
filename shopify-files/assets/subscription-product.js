@@ -2,11 +2,20 @@
 class SubscriptionProduct {
   constructor() {
     this.apiBase = window.subscriptionConfig?.apiBase || 'https://shopify-razorpay-backend-production.up.railway.app';
-    this.razorpayKeyId = window.subscriptionConfig?.razorpayKeyId || 'rzp_live_SQfuiRsuG1eqca';
-    this.customerId = window.subscriptionConfig?.customerId;
+    this.razorpayKeyId = window.subscriptionConfig?.razorpay_key_id || 'rzp_live_SSfTeiwakEqpU0';
+    this.customerEmail = window.subscriptionConfig?.customerEmail;
+    this.customerPhone = window.subscriptionConfig?.customerPhone;
     
     this.selectedPlan = null;
     this.cart = [];
+    
+    // Check if Razorpay is loaded
+    if (typeof Razorpay === 'undefined') {
+      console.error('❌ Razorpay SDK not loaded');
+      this.showNotification('Payment gateway not available', 'error');
+    } else {
+      console.log('✅ Razorpay SDK loaded');
+    }
     
     this.init();
   }
@@ -194,6 +203,7 @@ class SubscriptionProduct {
   async createSubscription() {
     try {
       console.log('🚀 Starting subscription creation...');
+      alert('Button clicked! Check console for details...');
       this.showNotification('Creating subscription...', 'info');
       
       const selectedVariant = this.getSelectedVariant();
