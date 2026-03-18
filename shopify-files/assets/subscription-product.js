@@ -202,7 +202,6 @@ class SubscriptionProduct {
   async createSubscription() {
     try {
       console.log('🚀 Starting subscription creation...');
-      alert('Button clicked! Check console for details...');
       this.showNotification('Creating subscription...', 'info');
       
       const selectedVariant = this.getSelectedVariant();
