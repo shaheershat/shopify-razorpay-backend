@@ -169,17 +169,44 @@ class SubscriptionProduct {
       });
 
       // Show loading
-      this.showNotification('Opening payment authorization...', 'info');
+      this.showNotification('Creating subscription...', 'info');
       
-      // Step 1: Directly open Razorpay checkout with plan details (NO subscription creation yet)
-      this.openRazorpaySubscriptionCheckout(this.selectedPlan.planId, this.selectedPlan.price, {
-        customerEmail,
-        customerPhone,
-        variantId: this.selectedPlan.variantId,
-        frequency: this.selectedPlan.frequency,
-        productTitle: this.selectedPlan.name,
-        productDescription: this.selectedPlan.description
+      // Step 1: Create Razorpay subscription first (mandate flow)
+      const response = await fetch(`${this.apiBase}/api/create-subscription-direct`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          plan_id: this.selectedPlan.planId,
+          customer_email: customerEmail,
+          customer_phone: customerPhone,
+          product_id: this.selectedPlan.variantId,
+          frequency: this.selectedPlan.frequency,
+          product_title: this.selectedPlan.name,
+          product_description: this.selectedPlan.description,
+          amount: this.selectedPlan.price
+        })
       });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('❌ API error response:', errorText);
+        throw new Error(`API Error: ${response.status} - ${errorText}`);
+      }
+
+      const result = await response.json();
+      console.log('📊 API response data:', result);
+
+      if (result.success) {
+        console.log('✅ Subscription created, opening Razorpay subscription checkout...');
+        console.log('💰 Plan amount from backend:', result.amount);
+        // Step 2: Open Razorpay checkout to AUTHENTICATE subscription (mandate flow)
+        this.openRazorpaySubscriptionCheckout(result.subscription_id, result.key_id, result.amount);
+      } else {
+        console.error('❌ API error:', result.error);
+        this.showNotification(`Failed to create subscription: ${result.error}`, 'error');
+      }
 
     } catch (error) {
       console.error('❌ Subscription creation error:', error);
@@ -199,10 +226,9 @@ class SubscriptionProduct {
     this.openRazorpaySubscriptionCheckout(subscriptionId, keyId, amount);
   }
   
-  openRazorpaySubscriptionCheckout(planId, amount, customerData) {
+  openRazorpaySubscriptionCheckout(subscriptionId, keyId, amount) {
     console.log('🚀 Opening Razorpay subscription checkout (mandate flow)...');
     console.log('💰 Using amount from plan:', amount);
-    console.log('👤 Customer data:', customerData);
     
     // Check if Razorpay is available
     if (typeof Razorpay === 'undefined') {
@@ -211,62 +237,35 @@ class SubscriptionProduct {
       return;
     }
     
-    // Create Razorpay order first (for payment authorization)
-    const orderOptions = {
-      key: 'rzp_live_SSfTeiwakEqpU0', // Force use new key
-      amount: amount * 100, // Convert rupees to paise
-      currency: 'INR',
-      name: 'Luvwish Subscription Authorization',
-      description: `Authorize ${customerData.productTitle} - ${customerData.productDescription}`,
+    // PURE SUBSCRIPTION CHECKOUT - bypasses Magic Checkout completely
+    const options = {
+      key: keyId, // Use key from backend
+      subscription_id: subscriptionId, // Use subscription_id, not order_id
+      name: 'Luvwish Subscription',
+      description: `${this.selectedPlan.name} - ${this.selectedPlan.description}`,
       image: 'https://luvwish.in/cdn/shop/files/Logo_1_250x250.png',
-      handler: async (response) => {
-        console.log('✅ Payment authorization completed:', response);
+      amount: amount, // Use actual plan amount from backend (already in paise)
+      handler: (response) => {
+        console.log('✅ Subscription payment completed:', response);
         
-        // Step 2: After successful authorization, create the subscription
-        try {
-          console.log('🔄 Creating subscription after payment authorization...');
+        // For subscription flow, we get razorpay_subscription_id and razorpay_payment_id
+        if (response.razorpay_subscription_id && response.razorpay_payment_id) {
+          console.log('🎉 Subscription activated successfully!');
+          this.showNotification('Subscription activated successfully!', 'success');
           
-          const subscriptionResponse = await fetch(`${this.apiBase}/api/create-subscription-direct`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-              plan_id: planId,
-              customer_email: customerData.customerEmail,
-              customer_phone: customerData.customerPhone,
-              product_id: customerData.variantId,
-              frequency: customerData.frequency,
-              product_title: customerData.productTitle,
-              product_description: customerData.productDescription,
-              amount: amount
-            })
-          });
-
-          const subscriptionResult = await subscriptionResponse.json();
-          
-          if (subscriptionResult.success) {
-            console.log('✅ Subscription created successfully after payment!');
-            this.showNotification('Subscription activated successfully!', 'success');
-            
-            // Redirect to subscription management page after 2 seconds
-            setTimeout(() => {
-              window.location.href = '/pages/subscription-management';
-            }, 2000);
-          } else {
-            console.error('❌ Failed to create subscription:', subscriptionResult.error);
-            this.showNotification(`Subscription activation failed: ${subscriptionResult.error}`, 'error');
-          }
-          
-        } catch (error) {
-          console.error('❌ Error creating subscription after payment:', error);
-          this.showNotification(`Failed to activate subscription: ${error.message}`, 'error');
+          // Redirect to subscription management page after 2 seconds
+          setTimeout(() => {
+            window.location.href = '/pages/subscription-management';
+          }, 2000);
+        } else {
+          console.error('❌ Invalid subscription response:', response);
+          this.showNotification('Subscription activation failed', 'error');
         }
       },
       modal: {
         ondismiss: () => {
-          console.log('❌ Payment modal dismissed');
-          this.showNotification('Payment authorization cancelled', 'warning');
+          console.log('❌ Subscription modal dismissed');
+          this.showNotification('Subscription setup cancelled', 'warning');
         },
         escape: true,
         backdropclose: false,
@@ -277,12 +276,10 @@ class SubscriptionProduct {
       notes: {
         subscription_type: 'mandate',
         flow: 'autopay',
-        plan_name: customerData.productTitle,
-        plan_price: amount,
-        variant_id: customerData.variantId,
-        plan_id: planId,
-        customer_email: customerData.customerEmail,
-        customer_phone: customerData.customerPhone,
+        plan_name: this.selectedPlan.name,
+        plan_price: this.selectedPlan.price,
+        variant_id: this.selectedPlan.variantId,
+        subscription_id: subscriptionId,
         timestamp: Date.now()
       },
       theme: {
@@ -290,8 +287,8 @@ class SubscriptionProduct {
         backdrop_color: '#ffffff'
       },
       prefill: {
-        email: customerData.customerEmail || '',
-        contact: customerData.customerPhone || ''
+        email: this.customerEmail || '',
+        contact: this.customerPhone || ''
       },
       readonly: {
         email: false,
@@ -299,25 +296,26 @@ class SubscriptionProduct {
       }
     };
 
-    console.log('🔧 Razorpay ORDER options:', orderOptions);
-    console.log('💰 Amount:', amount * 100, '(paise)');
-    console.log('🚀 Opening Razorpay ORDER modal for authorization...');
+    console.log('🔧 Razorpay SUBSCRIPTION options:', options);
+    console.log('🔍 Using subscription_id:', subscriptionId);
+    console.log('💰 Amount:', amount);
+    console.log('🚀 Opening SUBSCRIPTION checkout (mandate flow) - NO Magic Checkout!');
     
     try {
-      // Create Razorpay instance for order payment
-      const rzp = new Razorpay(orderOptions);
-      console.log('✅ Razorpay order instance created successfully');
-      console.log('🚀 Opening Razorpay ORDER modal...');
+      // Create new Razorpay instance for SUBSCRIPTION
+      const rzp = new Razorpay(options);
+      console.log('✅ Razorpay subscription instance created successfully');
+      console.log('🚀 Opening Razorpay SUBSCRIPTION modal...');
       
-      // Open order modal (this will authorize payment for subscription)
+      // Open subscription modal (this will show mandate flow)
       rzp.open();
       
       // Check if modal opened
       setTimeout(() => {
         const modal = document.querySelector('.razorpay-container');
         if (modal) {
-          console.log('✅ Razorpay order modal opened successfully');
-          console.log('🎯 This is AUTHORIZATION flow - payment then creates subscription');
+          console.log('✅ Razorpay subscription modal opened successfully');
+          console.log('🎯 This is MANDATE flow - no immediate payment');
         } else {
           console.warn('⚠️ Razorpay modal not found, trying to open again...');
           // Try once more
@@ -326,8 +324,8 @@ class SubscriptionProduct {
       }, 500);
       
     } catch (error) {
-      console.error('❌ Error opening Razorpay order:', error);
-      this.showNotification(`Failed to open payment: ${error.message}`, 'error');
+      console.error('❌ Error opening Razorpay subscription:', error);
+      this.showNotification(`Failed to open subscription: ${error.message}`, 'error');
     }
   }
   
