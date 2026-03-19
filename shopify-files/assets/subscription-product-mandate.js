@@ -205,62 +205,35 @@ class SubscriptionProduct {
       return;
     }
     
-    // Create Razorpay order first (for payment authorization)
-    const orderOptions = {
+    // PURE SUBSCRIPTION MANDATE CHECKOUT - bypasses Magic Checkout completely
+    const options = {
       key: 'rzp_live_SSfTeiwakEqpU0', // Force use new key
-      amount: amount * 100, // Convert rupees to paise
-      currency: 'INR',
-      name: 'Luvwish Subscription Authorization',
-      description: `Authorize ${customerData.productTitle} - ${customerData.productDescription}`,
+      subscription_id: planId, // Use subscription_id for mandate flow
+      name: 'Luvwish Subscription',
+      description: `${customerData.productTitle} - ${customerData.productDescription}`,
       image: 'https://luvwish.in/cdn/shop/files/Logo_1_250x250.png',
+      amount: amount * 100, // Convert rupees to paise
       handler: async (response) => {
-        console.log('✅ Payment authorization completed:', response);
+        console.log('✅ Subscription mandate completed:', response);
         
-        // Step 2: After successful authorization, create the subscription
-        try {
-          console.log('🔄 Creating subscription after payment authorization...');
+        // For subscription mandate flow, we get razorpay_subscription_id and razorpay_payment_id
+        if (response.razorpay_subscription_id && response.razorpay_payment_id) {
+          console.log('🎉 Subscription mandate authorized successfully!');
+          this.showNotification('Subscription activated successfully!', 'success');
           
-          const subscriptionResponse = await fetch(`${this.apiBase}/api/create-subscription-direct`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-              plan_id: planId,
-              customer_email: customerData.customerEmail,
-              customer_phone: customerData.customerPhone,
-              product_id: customerData.variantId,
-              frequency: customerData.frequency,
-              product_title: customerData.productTitle,
-              product_description: customerData.productDescription,
-              amount: amount
-            })
-          });
-
-          const subscriptionResult = await subscriptionResponse.json();
-          
-          if (subscriptionResult.success) {
-            console.log('✅ Subscription created successfully after payment!');
-            this.showNotification('Subscription activated successfully!', 'success');
-            
-            // Redirect to subscription management page after 2 seconds
-            setTimeout(() => {
-              window.location.href = '/pages/subscription-management';
-            }, 2000);
-          } else {
-            console.error('❌ Failed to create subscription:', subscriptionResult.error);
-            this.showNotification(`Subscription activation failed: ${subscriptionResult.error}`, 'error');
-          }
-          
-        } catch (error) {
-          console.error('❌ Error creating subscription after payment:', error);
-          this.showNotification(`Failed to activate subscription: ${error.message}`, 'error');
+          // Redirect to subscription management page after 2 seconds
+          setTimeout(() => {
+            window.location.href = '/pages/subscription-management';
+          }, 2000);
+        } else {
+          console.error('❌ Invalid subscription response:', response);
+          this.showNotification('Subscription activation failed', 'error');
         }
       },
       modal: {
         ondismiss: () => {
-          console.log('❌ Payment modal dismissed');
-          this.showNotification('Payment authorization cancelled', 'warning');
+          console.log('❌ Subscription modal dismissed');
+          this.showNotification('Subscription setup cancelled', 'warning');
         },
         escape: true,
         backdropclose: false,
@@ -293,35 +266,52 @@ class SubscriptionProduct {
       }
     };
 
-    console.log('🔧 Razorpay ORDER options:', orderOptions);
+    console.log('🔧 Razorpay SUBSCRIPTION MANDATE options:', options);
+    console.log('🔍 Using subscription_id:', planId);
     console.log('💰 Amount:', amount * 100, '(paise)');
-    console.log('🚀 Opening Razorpay ORDER modal for authorization...');
+    console.log('🚀 Opening SUBSCRIPTION MANDATE modal - NO Magic Checkout!');
     
     try {
-      // Create Razorpay instance for order payment
-      const rzp = new Razorpay(orderOptions);
-      console.log('✅ Razorpay order instance created successfully');
-      console.log('🚀 Opening Razorpay ORDER modal...');
+      // Force new Razorpay instance to bypass any cached Magic Checkout
+      if (typeof window.Razorpay !== 'undefined') {
+        // Clear any existing Razorpay instances
+        delete window.Razorpay;
+      }
       
-      // Open order modal (this will authorize payment for subscription)
-      rzp.open();
+      // Reload Razorpay SDK to ensure clean instance
+      const script = document.createElement('script');
+      script.src = 'https://checkout.razorpay.com/v1/razorpay.js';
+      script.async = true;
+      script.onload = () => {
+        console.log('✅ Fresh Razorpay SDK loaded');
+        
+        // Create new Razorpay instance for SUBSCRIPTION MANDATE
+        const rzp = new Razorpay(options);
+        console.log('✅ Razorpay subscription mandate instance created successfully');
+        console.log('🚀 Opening SUBSCRIPTION MANDATE modal...');
+        
+        // Open subscription mandate modal (this will show autopay setup)
+        rzp.open();
+        
+        // Check if modal opened
+        setTimeout(() => {
+          const modal = document.querySelector('.razorpay-container');
+          if (modal) {
+            console.log('✅ Razorpay subscription mandate modal opened successfully');
+            console.log('🎯 This is PURE MANDATE flow - autopay setup only');
+          } else {
+            console.warn('⚠️ Razorpay modal not found, trying to open again...');
+            // Try once more
+            rzp.open();
+          }
+        }, 500);
+      };
       
-      // Check if modal opened
-      setTimeout(() => {
-        const modal = document.querySelector('.razorpay-container');
-        if (modal) {
-          console.log('✅ Razorpay order modal opened successfully');
-          console.log('🎯 This is AUTHORIZATION flow - payment then creates subscription');
-        } else {
-          console.warn('⚠️ Razorpay modal not found, trying to open again...');
-          // Try once more
-          rzp.open();
-        }
-      }, 500);
+      document.head.appendChild(script);
       
     } catch (error) {
-      console.error('❌ Error opening Razorpay order:', error);
-      this.showNotification(`Failed to open payment: ${error.message}`, 'error');
+      console.error('❌ Error opening Razorpay subscription mandate:', error);
+      this.showNotification(`Failed to open subscription: ${error.message}`, 'error');
     }
   }
   
