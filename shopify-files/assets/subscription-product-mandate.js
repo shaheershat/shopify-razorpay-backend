@@ -123,23 +123,15 @@ class SubscriptionProduct {
       console.error('🔥 Subscribe button not found!');
     }
     
-    // Enable buttons when customer info is filled
-    const emailInput = document.getElementById('customerEmail');
-    const phoneInput = document.getElementById('customerPhone');
-    
-    console.log('🔥 Email input found:', emailInput);
-    console.log('🔥 Phone input found:', phoneInput);
-    
-    if (emailInput) emailInput.addEventListener('input', () => this.updateButtonStates());
-    if (phoneInput) phoneInput.addEventListener('input', () => this.updateButtonStates());
+    // Update button states (no input fields to monitor)
+    this.updateButtonStates();
     
     console.log('🔥 Buttons initialized!');
   }
   
   updateButtonStates() {
-    const email = document.getElementById('customerEmail').value;
-    const phone = document.getElementById('customerPhone').value;
-    const hasValidInfo = email && phone && this.selectedPlan;
+    // Only require plan selection (customer info is auto-filled from logged-in user)
+    const hasValidInfo = this.selectedPlan;
     
     const subscribeNowBtn = document.getElementById('subscribeNowBtn');
     
@@ -153,11 +145,12 @@ class SubscriptionProduct {
         return;
       }
 
-      const customerEmail = this.customerEmail || document.getElementById('customerEmail')?.value;
-      const customerPhone = this.customerPhone || document.getElementById('customerPhone')?.value;
+      // Use logged-in customer info automatically (no input fields needed)
+      const customerEmail = this.customerEmail || '{{ customer.email }}';
+      const customerPhone = this.customerPhone || '{{ customer.phone }}';
 
-      if (!customerEmail || !customerPhone) {
-        this.showNotification('Please fill in your email and phone number', 'error');
+      if (!customerEmail) {
+        this.showNotification('Please log in to subscribe', 'error');
         return;
       }
 
