@@ -272,57 +272,26 @@ class SubscriptionProduct {
     console.log('🚀 Opening SUBSCRIPTION MANDATE modal - NO Magic Checkout!');
     
     try {
-      // Force new Razorpay instance to bypass any cached Magic Checkout
-      if (typeof window.Razorpay !== 'undefined') {
-        // Clear any existing Razorpay instances
-        delete window.Razorpay;
-      }
+      // Use the existing Razorpay instance directly (no need to reload)
+      const rzp = new Razorpay(options);
+      console.log('✅ Razorpay subscription mandate instance created successfully');
+      console.log('🚀 Opening SUBSCRIPTION MANDATE modal...');
       
-      // Reload Razorpay SDK to ensure clean instance
-      const script = document.createElement('script');
-      script.src = 'https://checkout.razorpay.com/v1/razorpay.js';
-      script.async = true;
-      script.onload = () => {
-        console.log('✅ Fresh Razorpay SDK loaded');
-        
-        // Wait a bit for Razorpay to be fully available
-        setTimeout(() => {
-          if (typeof Razorpay !== 'undefined' && typeof Razorpay === 'function') {
-            console.log('✅ Razorpay is ready, creating subscription mandate instance');
-            
-            // Create new Razorpay instance for SUBSCRIPTION MANDATE
-            const rzp = new Razorpay(options);
-            console.log('✅ Razorpay subscription mandate instance created successfully');
-            console.log('🚀 Opening SUBSCRIPTION MANDATE modal...');
-            
-            // Open subscription mandate modal (this will show autopay setup)
-            rzp.open();
-            
-            // Check if modal opened
-            setTimeout(() => {
-              const modal = document.querySelector('.razorpay-container');
-              if (modal) {
-                console.log('✅ Razorpay subscription mandate modal opened successfully');
-                console.log('🎯 This is PURE MANDATE flow - autopay setup only');
-              } else {
-                console.warn('⚠️ Razorpay modal not found, trying to open again...');
-                // Try once more
-                rzp.open();
-              }
-            }, 500);
-          } else {
-            console.error('❌ Razorpay not properly loaded');
-            this.showNotification('Payment gateway not available', 'error');
-          }
-        }, 1000); // Wait 1 second for SDK to be ready
-      };
+      // Open subscription mandate modal (this will show autopay setup)
+      rzp.open();
       
-      script.onerror = () => {
-        console.error('❌ Failed to load Razorpay SDK');
-        this.showNotification('Failed to load payment gateway', 'error');
-      };
-      
-      document.head.appendChild(script);
+      // Check if modal opened
+      setTimeout(() => {
+        const modal = document.querySelector('.razorpay-container');
+        if (modal) {
+          console.log('✅ Razorpay subscription mandate modal opened successfully');
+          console.log('🎯 This is PURE MANDATE flow - autopay setup only');
+        } else {
+          console.warn('⚠️ Razorpay modal not found, trying to open again...');
+          // Try once more
+          rzp.open();
+        }
+      }, 500);
       
     } catch (error) {
       console.error('❌ Error opening Razorpay subscription mandate:', error);
