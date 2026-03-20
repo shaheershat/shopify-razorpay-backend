@@ -2,8 +2,11 @@
 class SubscriptionManagement {
   constructor() {
     this.apiBase = window.subscriptionConfig?.apiBase || 'https://shopify-razorpay-backend-production.up.railway.app';
-    this.customerId = window.subscriptionConfig?.customerId;
-    this.customerEmail = window.subscriptionConfig?.customerEmail;
+    
+    // TEMPORARY: Override logged-in customer with hardcoded values for testing
+    this.customerId = 'cust_SSlaBQYeOfoOj3'; // Razorpay customer ID
+    this.customerEmail = 'shaheershavava54@gmail.com'; // Hardcoded email
+    this.customerPhone = '+919744936772'; // Hardcoded phone
     
     this.subscriptions = [];
     this.currentAction = null;
@@ -22,24 +25,11 @@ class SubscriptionManagement {
       this.showLoading();
       
       // Debug: Check configuration
-      console.log('Loading subscriptions with config:', {
-        apiBase: this.apiBase,
-        customerEmail: this.customerEmail,
-        customerId: this.customerId
-      });
-      
-      // TEMPORARY: Hardcode your Razorpay customer ID and contact info for testing
-      const hardcodedCustomerId = 'cust_SSlaBQYeOfoOj3';
-      const hardcodedEmail = 'shaheershavava54@gmail.com';
-      const hardcodedPhone = '+919744936772';
-      
-      console.log('🔧 Using hardcoded values:');
-      console.log('  - Customer ID:', hardcodedCustomerId);
-      console.log('  - Email:', hardcodedEmail);
-      console.log('  - Phone:', hardcodedPhone);
-      
-      // Use hardcoded email for testing
-      let customerEmail = hardcodedEmail;
+      console.log('🔧 Using hardcoded customer data (overriding logged-in):');
+      console.log('  - Customer ID:', this.customerId);
+      console.log('  - Email:', this.customerEmail);
+      console.log('  - Phone:', this.customerPhone);
+      console.log('  - API Base:', this.apiBase);
       
       // Load real subscriptions from backend
       const response = await fetch(`${this.apiBase}/api/customer-subscriptions`, {
@@ -48,8 +38,8 @@ class SubscriptionManagement {
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-          customer_email: customerEmail,
-          customer_id: hardcodedCustomerId // Add hardcoded customer ID
+          customer_email: this.customerEmail,
+          customer_id: this.customerId
         })
       });
       
@@ -65,7 +55,7 @@ class SubscriptionManagement {
         // If no subscriptions, check if we should try phone number lookup
         if (this.subscriptions.length === 0) {
           console.log('No subscriptions found for email, trying phone lookup...');
-          // Try phone number lookup with hardcoded phone
+          // Try phone number lookup
           try {
             const phoneResponse = await fetch(`${this.apiBase}/api/customer-subscriptions-by-phone`, {
               method: 'POST',
@@ -73,8 +63,8 @@ class SubscriptionManagement {
                 'Content-Type': 'application/json'
               },
               body: JSON.stringify({
-                customer_phone: hardcodedPhone,
-                customer_id: hardcodedCustomerId // Add hardcoded customer ID
+                customer_phone: this.customerPhone,
+                customer_id: this.customerId
               })
             });
             
@@ -99,7 +89,7 @@ class SubscriptionManagement {
                   'Content-Type': 'application/json'
                 },
                 body: JSON.stringify({
-                  customer_id: hardcodedCustomerId
+                  customer_id: this.customerId
                 })
               });
               
