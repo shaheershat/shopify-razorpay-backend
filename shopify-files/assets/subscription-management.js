@@ -20,6 +20,88 @@ class SubscriptionManagement {
     this.initializeModal();
   }
   
+  initializeModal() {
+    const modal = document.getElementById('actionModal');
+    const confirmBtn = document.getElementById('confirmAction');
+    const cancelBtn = document.getElementById('cancelAction');
+    
+    if (confirmBtn) {
+      confirmBtn.addEventListener('click', () => this.executeModalAction());
+    }
+    
+    if (cancelBtn) {
+      cancelBtn.addEventListener('click', () => this.hideModal());
+    }
+    
+    // Close modal when clicking outside
+    if (modal) {
+      modal.addEventListener('click', (e) => {
+        if (e.target === modal) {
+          this.hideModal();
+        }
+      });
+    }
+  }
+  
+  showModal(title, message, action, subscriptionId) {
+    const modal = document.getElementById('actionModal');
+    const modalTitle = document.getElementById('modalTitle');
+    const modalMessage = document.getElementById('modalMessage');
+    
+    if (modal && modalTitle && modalMessage) {
+      modalTitle.textContent = title;
+      modalMessage.textContent = message;
+      modal.style.display = 'flex';
+      
+      this.currentAction = action;
+      this.currentSubscriptionId = subscriptionId;
+    }
+  }
+  
+  hideModal() {
+    const modal = document.getElementById('actionModal');
+    if (modal) {
+      modal.style.display = 'none';
+    }
+    this.currentAction = null;
+    this.currentSubscriptionId = null;
+  }
+  
+  async executeModalAction() {
+    if (!this.currentAction || !this.currentSubscriptionId) return;
+    
+    const actionText = this.currentAction.charAt(0).toUpperCase() + this.currentAction.slice(1);
+    
+    try {
+      this.showLoading();
+      
+      const response = await fetch(`${this.apiBase}/api/subscriptions/${this.currentAction}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          subscription_id: this.currentSubscriptionId
+        })
+      });
+      
+      const result = await response.json();
+      
+      if (result.success) {
+        this.showNotification(`Subscription ${actionText} successfully`, 'success');
+        await this.loadSubscriptions();
+      } else {
+        this.showNotification(`Failed to ${actionText} subscription: ${result.error}`, 'error');
+      }
+    } catch (error) {
+      this.hideLoading();
+      this.showNotification(`Error: ${error.message}`, 'error');
+    }
+    
+    this.hideModal();
+    this.hideLoading();
+  }
+  
   async loadSubscriptions() {
     try {
       this.showLoading();
@@ -365,136 +447,21 @@ class SubscriptionManagement {
     }
   }
   
-  // Action methods
-  async pauseSubscription(subscriptionId) {
-    try {
-      this.showLoading();
-      
-      const response = await fetch(`${this.apiBase}/api/subscriptions/pause`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          subscription_id: subscriptionId
-        })
-      });
-      
-      const result = await response.json();
-      
-      if (result.success) {
-        this.showNotification('Subscription paused successfully', 'success');
-        await this.loadSubscriptions(); // Reload to show updated status
-      } else {
-        this.showNotification('Failed to pause subscription: ' + result.error, 'error');
-      }
-      
-      this.hideLoading();
-    } catch (error) {
-      console.error('Error pausing subscription:', error);
-      this.showNotification('Error pausing subscription: ' + error.message, 'error');
-      this.hideLoading();
-    }
+  // Action methods - use modal for confirmation
+  pauseSubscription(subscriptionId) {
+    this.showModal('Pause Subscription', 'Are you sure you want to pause this subscription?', 'pause', subscriptionId);
   }
 
-  async resumeSubscription(subscriptionId) {
-    try {
-      this.showLoading();
-      
-      const response = await fetch(`${this.apiBase}/api/subscriptions/resume`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          subscription_id: subscriptionId
-        })
-      });
-      
-      const result = await response.json();
-      
-      if (result.success) {
-        this.showNotification('Subscription resumed successfully', 'success');
-        await this.loadSubscriptions(); // Reload to show updated status
-      } else {
-        this.showNotification('Failed to resume subscription: ' + result.error, 'error');
-      }
-      
-      this.hideLoading();
-    } catch (error) {
-      console.error('Error resuming subscription:', error);
-      this.showNotification('Error resuming subscription: ' + error.message, 'error');
-      this.hideLoading();
-    }
+  resumeSubscription(subscriptionId) {
+    this.showModal('Resume Subscription', 'Are you sure you want to resume this subscription?', 'resume', subscriptionId);
   }
 
-  async skipPayment(subscriptionId) {
-    try {
-      this.showLoading();
-      
-      const response = await fetch(`${this.apiBase}/api/subscriptions/skip`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          subscription_id: subscriptionId
-        })
-      });
-      
-      const result = await response.json();
-      
-      if (result.success) {
-        this.showNotification('Next payment skipped successfully', 'success');
-        await this.loadSubscriptions(); // Reload to show updated status
-      } else {
-        this.showNotification('Failed to skip payment: ' + result.error, 'error');
-      }
-      
-      this.hideLoading();
-    } catch (error) {
-      console.error('Error skipping payment:', error);
-      this.showNotification('Error skipping payment: ' + error.message, 'error');
-      this.hideLoading();
-    }
+  skipPayment(subscriptionId) {
+    this.showModal('Skip Payment', 'Are you sure you want to skip the next payment?', 'skip', subscriptionId);
   }
 
-  async cancelSubscription(subscriptionId) {
-    // Show confirmation dialog
-    const confirmed = confirm('Are you sure you want to cancel this subscription? This action cannot be undone.');
-    
-    if (!confirmed) {
-      return;
-    }
-    
-    try {
-      this.showLoading();
-      
-      const response = await fetch(`${this.apiBase}/api/subscriptions/cancel`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          subscription_id: subscriptionId
-        })
-      });
-      
-      const result = await response.json();
-      
-      if (result.success) {
-        this.showNotification('Subscription cancelled successfully', 'success');
-        await this.loadSubscriptions(); // Reload to show updated status
-      } else {
-        this.showNotification('Failed to cancel subscription: ' + result.error, 'error');
-      }
-      
-      this.hideLoading();
-    } catch (error) {
-      console.error('Error cancelling subscription:', error);
-      this.showNotification('Error cancelling subscription: ' + error.message, 'error');
-      this.hideLoading();
-    }
+  cancelSubscription(subscriptionId) {
+    this.showModal('Cancel Subscription', 'Are you sure you want to cancel this subscription? This action cannot be undone.', 'cancel', subscriptionId);
   }
   
   createNewSubscription() {
@@ -526,26 +493,50 @@ class SubscriptionManagement {
     const notification = document.createElement('div');
     notification.className = `notification ${type}`;
     notification.textContent = message;
-
+    
+    // Add to page
     document.body.appendChild(notification);
-
+    
+    // Auto remove after 5 seconds
     setTimeout(() => {
-      notification.remove();
-    }, 3000);
+      if (notification.parentNode) {
+        notification.parentNode.removeChild(notification);
+      }
+    }, 5000);
   }
   
-  showLoading(message = 'Loading...') {
-    this.showNotification(message, 'info');
+  showLoading() {
+    const loadingState = document.getElementById('loadingState');
+    const subscriptionsList = document.getElementById('subscriptionsList');
+    
+    if (loadingState) loadingState.classList.remove('hidden');
+    if (subscriptionsList) subscriptionsList.classList.add('hidden');
   }
   
   hideLoading() {
-    // Remove loading notification if exists
-    const notifications = document.querySelectorAll('.notification');
-    notifications.forEach(n => n.remove());
+    const loadingState = document.getElementById('loadingState');
+    
+    if (loadingState) loadingState.classList.add('hidden');
   }
   
   showError(message) {
     this.showNotification(message, 'error');
+  }
+  
+  formatDate(dateString) {
+    if (!dateString) return 'N/A';
+    
+    try {
+      const date = new Date(dateString);
+      return date.toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric'
+      });
+    } catch (error) {
+      console.error('Error formatting date:', error);
+      return dateString;
+    }
   }
 }
 
