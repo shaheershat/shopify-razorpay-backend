@@ -28,45 +28,18 @@ class SubscriptionManagement {
         customerId: this.customerId
       });
       
-      // TEMPORARY: Hardcode your Razorpay customer ID for testing
+      // TEMPORARY: Hardcode your Razorpay customer ID and contact info for testing
       const hardcodedCustomerId = 'cust_SSlaBQYeOfoOj3';
-      console.log('🔧 Using hardcoded Razorpay customer ID:', hardcodedCustomerId);
+      const hardcodedEmail = 'shaheershavava54@gmail.com';
+      const hardcodedPhone = '+919744936772';
       
-      // Try customer email first, then try to find by customer ID
-      let customerEmail = this.customerEmail;
+      console.log('🔧 Using hardcoded values:');
+      console.log('  - Customer ID:', hardcodedCustomerId);
+      console.log('  - Email:', hardcodedEmail);
+      console.log('  - Phone:', hardcodedPhone);
       
-      if (!customerEmail && this.customerId) {
-        console.log('No customer email found, but have customer ID. Trying to fetch customer details...');
-        // Try to get customer details from Shopify
-        try {
-          const customerResponse = await fetch(`${this.apiBase}/api/customer-details`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-              customer_id: this.customerId
-            })
-          });
-          
-          if (customerResponse.ok) {
-            const customerData = await customerResponse.json();
-            if (customerData.success && customerData.customer) {
-              customerEmail = customerData.customer.email;
-              console.log('Found customer email:', customerEmail);
-            }
-          }
-        } catch (error) {
-          console.log('Could not fetch customer details:', error.message);
-        }
-      }
-      
-      if (!customerEmail) {
-        console.error('No customer email found');
-        this.showError('Customer email not found. Please log in again.');
-        this.hideLoading();
-        return;
-      }
+      // Use hardcoded email for testing
+      let customerEmail = hardcodedEmail;
       
       // Load real subscriptions from backend
       const response = await fetch(`${this.apiBase}/api/customer-subscriptions`, {
@@ -92,31 +65,28 @@ class SubscriptionManagement {
         // If no subscriptions, check if we should try phone number lookup
         if (this.subscriptions.length === 0) {
           console.log('No subscriptions found for email, trying phone lookup...');
-          // Try phone number lookup if available
-          const customerPhone = this.getCustomerPhone();
-          if (customerPhone) {
-            try {
-              const phoneResponse = await fetch(`${this.apiBase}/api/customer-subscriptions-by-phone`, {
-                method: 'POST',
-                headers: {
-                  'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                  customer_phone: customerPhone,
-                  customer_id: hardcodedCustomerId // Add hardcoded customer ID
-                })
-              });
-              
-              if (phoneResponse.ok) {
-                const phoneResult = await phoneResponse.json();
-                if (phoneResult.success && phoneResult.subscriptions.length > 0) {
-                  this.subscriptions = phoneResult.subscriptions;
-                  console.log('Found subscriptions by phone:', this.subscriptions.length);
-                }
+          // Try phone number lookup with hardcoded phone
+          try {
+            const phoneResponse = await fetch(`${this.apiBase}/api/customer-subscriptions-by-phone`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json'
+              },
+              body: JSON.stringify({
+                customer_phone: hardcodedPhone,
+                customer_id: hardcodedCustomerId // Add hardcoded customer ID
+              })
+            });
+            
+            if (phoneResponse.ok) {
+              const phoneResult = await phoneResponse.json();
+              if (phoneResult.success && phoneResult.subscriptions.length > 0) {
+                this.subscriptions = phoneResult.subscriptions;
+                console.log('Found subscriptions by phone:', this.subscriptions.length);
               }
-            } catch (phoneError) {
-              console.log('Phone lookup failed:', phoneError.message);
             }
+          } catch (phoneError) {
+            console.log('Phone lookup failed:', phoneError.message);
           }
           
           // Also try direct Razorpay customer ID lookup
