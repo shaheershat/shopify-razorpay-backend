@@ -223,25 +223,37 @@ class SubscriptionManagement {
     const loadingState = document.getElementById('loadingState');
     const subscriptionsList = document.getElementById('subscriptionsList');
     const emptyState = document.getElementById('emptyState');
+    const subscriptionTabs = document.getElementById('subscriptionTabs');
 
     if (loadingState) loadingState.classList.add('hidden');
+
+    // Update tab counts
+    this.updateTabCounts();
 
     // Filter subscriptions based on current filter
     const filteredSubscriptions = this.subscriptions.filter(sub => sub.status === this.currentFilter);
 
+    // Show tabs if there are any subscriptions
+    if (this.subscriptions.length > 0 && subscriptionTabs) {
+      subscriptionTabs.classList.remove('hidden');
+    }
+
     if (filteredSubscriptions.length === 0) {
       if (emptyState) emptyState.classList.remove('hidden');
       if (subscriptionsList) subscriptionsList.classList.add('hidden');
+      
+      // Update empty state based on current filter
+      this.updateEmptyState();
     } else {
       if (emptyState) emptyState.classList.add('hidden');
       if (subscriptionsList) subscriptionsList.classList.remove('hidden');
       
-      subscriptionsList.innerHTML = this.renderSubscriptionTabs() + 
-        filteredSubscriptions.map(subscription => this.createSubscriptionCard(subscription)).join('');
+      // Render only the subscription cards (tabs are already in the template)
+      subscriptionsList.innerHTML = filteredSubscriptions.map(subscription => this.createSubscriptionCard(subscription)).join('');
     }
   }
 
-  renderSubscriptionTabs() {
+  updateTabCounts() {
     const counts = {
       active: this.subscriptions.filter(s => s.status === 'active').length,
       paused: this.subscriptions.filter(s => s.status === 'paused').length,
@@ -249,40 +261,63 @@ class SubscriptionManagement {
       completed: this.subscriptions.filter(s => s.status === 'completed').length
     };
 
-    return `
-      <div class="bg-white rounded-lg shadow-md p-4 mb-6">
-        <div class="flex flex-wrap gap-2 border-b border-gray-200">
-          <button class="subscription-tab px-4 py-2 font-medium text-sm border-b-2 transition-colors ${
-            this.currentFilter === 'active' 
-              ? 'border-blue-500 text-blue-600' 
-              : 'border-transparent text-gray-500 hover:text-gray-700'
-          }" data-filter="active">
-            Active (${counts.active})
-          </button>
-          <button class="subscription-tab px-4 py-2 font-medium text-sm border-b-2 transition-colors ${
-            this.currentFilter === 'paused' 
-              ? 'border-blue-500 text-blue-600' 
-              : 'border-transparent text-gray-500 hover:text-gray-700'
-          }" data-filter="paused">
-            Paused (${counts.paused})
-          </button>
-          <button class="subscription-tab px-4 py-2 font-medium text-sm border-b-2 transition-colors ${
-            this.currentFilter === 'cancelled' 
-              ? 'border-blue-500 text-blue-600' 
-              : 'border-transparent text-gray-500 hover:text-gray-700'
-          }" data-filter="cancelled">
-            Cancelled (${counts.cancelled})
-          </button>
-          <button class="subscription-tab px-4 py-2 font-medium text-sm border-b-2 transition-colors ${
-            this.currentFilter === 'completed' 
-              ? 'border-blue-500 text-blue-600' 
-              : 'border-transparent text-gray-500 hover:text-gray-700'
-          }" data-filter="completed">
-            Completed (${counts.completed})
-          </button>
-        </div>
-      </div>
-    `;
+    // Update count elements
+    const activeCount = document.getElementById('activeCount');
+    const pausedCount = document.getElementById('pausedCount');
+    const cancelledCount = document.getElementById('cancelledCount');
+    const completedCount = document.getElementById('completedCount');
+
+    if (activeCount) activeCount.textContent = counts.active;
+    if (pausedCount) pausedCount.textContent = counts.paused;
+    if (cancelledCount) cancelledCount.textContent = counts.cancelled;
+    if (completedCount) completedCount.textContent = counts.completed;
+  }
+
+  updateEmptyState() {
+    const emptyStateTitle = document.getElementById('emptyStateTitle');
+    const emptyStateMessage = document.getElementById('emptyStateMessage');
+
+    const emptyStateMessages = {
+      active: {
+        title: 'No Active Subscriptions',
+        message: 'You don\'t have any active subscriptions yet.'
+      },
+      paused: {
+        title: 'No Paused Subscriptions',
+        message: 'You don\'t have any paused subscriptions.'
+      },
+      cancelled: {
+        title: 'No Cancelled Subscriptions',
+        message: 'You don\'t have any cancelled subscriptions.'
+      },
+      completed: {
+        title: 'No Completed Subscriptions',
+        message: 'You don\'t have any completed subscriptions.'
+      }
+    };
+
+    const currentMessage = emptyStateMessages[this.currentFilter] || emptyStateMessages.active;
+
+    if (emptyStateTitle) emptyStateTitle.textContent = currentMessage.title;
+    if (emptyStateMessage) emptyStateMessage.textContent = currentMessage.message;
+  }
+
+  setFilter(filter) {
+    this.currentFilter = filter;
+    
+    // Update tab styles
+    document.querySelectorAll('.subscription-tab').forEach(tab => {
+      if (tab.dataset.filter === filter) {
+        tab.classList.add('border-blue-500', 'text-blue-600');
+        tab.classList.remove('border-transparent', 'text-gray-500');
+      } else {
+        tab.classList.remove('border-blue-500', 'text-blue-600');
+        tab.classList.add('border-transparent', 'text-gray-500');
+      }
+    });
+    
+    // Re-render without reloading data
+    this.renderSubscriptions();
   }
   
   createSubscriptionCard(subscription) {

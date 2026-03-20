@@ -23,20 +23,38 @@
       <p class="mt-4 text-gray-600">Loading your subscriptions...</p>
     </div>
     
+    <!-- Subscription Tabs -->
+    <div id="subscriptionTabs" class="bg-white rounded-lg shadow-md p-4 mb-6 hidden">
+      <div class="flex flex-wrap gap-2 border-b border-gray-200">
+        <button class="subscription-tab px-4 py-2 font-medium text-sm border-b-2 transition-colors border-blue-500 text-blue-600" data-filter="active">
+          Active (<span id="activeCount">0</span>)
+        </button>
+        <button class="subscription-tab px-4 py-2 font-medium text-sm border-b-2 transition-colors border-transparent text-gray-500 hover:text-gray-700" data-filter="paused">
+          Paused (<span id="pausedCount">0</span>)
+        </button>
+        <button class="subscription-tab px-4 py-2 font-medium text-sm border-b-2 transition-colors border-transparent text-gray-500 hover:text-gray-700" data-filter="cancelled">
+          Cancelled (<span id="cancelledCount">0</span>)
+        </button>
+        <button class="subscription-tab px-4 py-2 font-medium text-sm border-b-2 transition-colors border-transparent text-gray-500 hover:text-gray-700" data-filter="completed">
+          Completed (<span id="completedCount">0</span>)
+        </button>
+      </div>
+    </div>
+    
     <!-- Subscriptions List -->
     <div id="subscriptionsList" class="space-y-6 hidden">
       <!-- Subscriptions will be dynamically added here -->
     </div>
     
-    <!-- Empty State -->
+    <!-- Empty States -->
     <div id="emptyState" class="text-center py-12 hidden">
       <div class="text-gray-400 mb-4">
         <svg class="w-16 h-16 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path>
         </svg>
       </div>
-      <h3 class="text-xl font-semibold text-gray-600 mb-2">No Active Subscriptions</h3>
-      <p class="text-gray-500 mb-6">You don't have any active subscriptions yet.</p>
+      <h3 id="emptyStateTitle" class="text-xl font-semibold text-gray-600 mb-2">No Active Subscriptions</h3>
+      <p id="emptyStateMessage" class="text-gray-500 mb-6">You don't have any active subscriptions yet.</p>
       <a href="/collections/all" class="bg-blue-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-blue-700 transition-colors">
         Browse Products
       </a>
