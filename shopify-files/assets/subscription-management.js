@@ -3,10 +3,10 @@ class SubscriptionManagement {
   constructor() {
     this.apiBase = window.subscriptionConfig?.apiBase || 'https://shopify-razorpay-backend-production.up.railway.app';
     
-    // TEMPORARY: Override logged-in customer with hardcoded values for testing
-    this.customerId = 'cust_SSlaBQYeOfoOj3'; // Razorpay customer ID
-    this.customerEmail = 'shaheershavava54@gmail.com'; // Hardcoded email
-    this.customerPhone = '+919744936772'; // Hardcoded phone
+    // Use logged-in customer data for comparison
+    this.customerId = window.subscriptionConfig?.customerId;
+    this.customerEmail = window.subscriptionConfig?.customerEmail;
+    this.customerPhone = window.subscriptionConfig?.customerPhone;
     
     this.subscriptions = [];
     this.currentAction = null;
@@ -25,21 +25,21 @@ class SubscriptionManagement {
       this.showLoading();
       
       // Debug: Check configuration
-      console.log('🔧 Using hardcoded customer data (overriding logged-in):');
+      console.log('� Checking subscriptions for logged-in customer:');
       console.log('  - Customer ID:', this.customerId);
       console.log('  - Email:', this.customerEmail);
       console.log('  - Phone:', this.customerPhone);
       console.log('  - API Base:', this.apiBase);
       
-      // Load real subscriptions from backend
-      const response = await fetch(`${this.apiBase}/api/customer-subscriptions`, {
+      // Load all subscriptions and filter by notes
+      const response = await fetch(`${this.apiBase}/api/customer-subscriptions-by-notes`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
           customer_email: this.customerEmail,
-          customer_id: this.customerId
+          customer_phone: this.customerPhone
         })
       });
       
@@ -50,12 +50,43 @@ class SubscriptionManagement {
       
       if (result.success) {
         this.subscriptions = result.subscriptions || [];
-        console.log('Subscriptions loaded:', this.subscriptions.length);
+        console.log('Subscriptions found by notes matching:', this.subscriptions.length);
+      } else {
+        console.error('Failed to load subscriptions:', result.error);
+        this.subscriptions = [];
+      }
+      
+      // If no subscriptions found by notes, try traditional methods as fallback
+      if (this.subscriptions.length === 0) {
+        console.log('No subscriptions found by notes, trying traditional methods...');
         
-        // If no subscriptions, check if we should try phone number lookup
-        if (this.subscriptions.length === 0) {
-          console.log('No subscriptions found for email, trying phone lookup...');
-          // Try phone number lookup
+        // Try email lookup
+        if (this.customerEmail) {
+          try {
+            const emailResponse = await fetch(`${this.apiBase}/api/customer-subscriptions`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json'
+              },
+              body: JSON.stringify({
+                customer_email: this.customerEmail
+              })
+            });
+            
+            if (emailResponse.ok) {
+              const emailResult = await emailResponse.json();
+              if (emailResult.success && emailResult.subscriptions.length > 0) {
+                this.subscriptions = emailResult.subscriptions;
+                console.log('Found subscriptions by email:', this.subscriptions.length);
+              }
+            }
+          } catch (emailError) {
+            console.log('Email lookup failed:', emailError.message);
+          }
+        }
+        
+        // Try phone lookup
+        if (this.subscriptions.length === 0 && this.customerPhone) {
           try {
             const phoneResponse = await fetch(`${this.apiBase}/api/customer-subscriptions-by-phone`, {
               method: 'POST',
@@ -63,8 +94,7 @@ class SubscriptionManagement {
                 'Content-Type': 'application/json'
               },
               body: JSON.stringify({
-                customer_phone: this.customerPhone,
-                customer_id: this.customerId
+                customer_phone: this.customerPhone
               })
             });
             
@@ -78,36 +108,7 @@ class SubscriptionManagement {
           } catch (phoneError) {
             console.log('Phone lookup failed:', phoneError.message);
           }
-          
-          // Also try direct Razorpay customer ID lookup
-          if (this.subscriptions.length === 0) {
-            console.log('Trying direct Razorpay customer ID lookup...');
-            try {
-              const customerIdResponse = await fetch(`${this.apiBase}/api/customer-subscriptions-by-customer-id`, {
-                method: 'POST',
-                headers: {
-                  'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                  customer_id: this.customerId
-                })
-              });
-              
-              if (customerIdResponse.ok) {
-                const customerIdResult = await customerIdResponse.json();
-                if (customerIdResult.success && customerIdResult.subscriptions.length > 0) {
-                  this.subscriptions = customerIdResult.subscriptions;
-                  console.log('Found subscriptions by customer ID:', this.subscriptions.length);
-                }
-              }
-            } catch (customerIdError) {
-              console.log('Customer ID lookup failed:', customerIdError.message);
-            }
-          }
         }
-      } else {
-        console.error('Failed to load subscriptions:', result.error);
-        this.subscriptions = [];
       }
       
       this.renderSubscriptions();

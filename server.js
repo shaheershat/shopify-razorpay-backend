@@ -196,6 +196,93 @@ app.post('/api/verify-payment-and-activate', async (req, res) => {
   }
 });
 
+// Get Customer Subscriptions by Notes Matching
+app.post('/api/customer-subscriptions-by-notes', async (req, res) => {
+  try {
+    const { customer_email, customer_phone } = req.body;
+    
+    console.log('🔍 Checking subscriptions by notes matching:', { customer_email, customer_phone });
+    
+    if (!customer_email && !customer_phone) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Customer email or phone is required' 
+      });
+    }
+
+    // Fetch all subscriptions from Razorpay
+    try {
+      const subscriptions = await razorpay.subscriptions.all();
+      
+      // Filter subscriptions by checking notes for matching email or phone
+      const matchingSubscriptions = subscriptions.items.filter(sub => {
+        // Check if subscription has notes
+        if (!sub.notes) return false;
+        
+        // Check email match in notes
+        const emailMatch = customer_email && 
+          (sub.notes.customer_email === customer_email || 
+           sub.notes.email === customer_email);
+        
+        // Check phone match in notes
+        const phoneMatch = customer_phone && 
+          (sub.notes.customer_phone === customer_phone || 
+           sub.notes.phone === customer_phone ||
+           sub.notes.customer_phone === customer_phone.replace('+', '') || // Remove + prefix
+           sub.notes.phone === customer_phone.replace('+', ''));
+        
+        return emailMatch || phoneMatch;
+      });
+      
+      console.log('Found subscriptions by notes matching:', matchingSubscriptions.length);
+
+      // Format subscription data
+      const formattedSubscriptions = matchingSubscriptions.map(sub => ({
+        id: sub.id,
+        plan_name: sub.plan_id,
+        status: sub.status,
+        current_period_start: new Date(sub.start_at * 1000).toISOString().split('T')[0],
+        current_period_end: new Date(sub.end_at * 1000).toISOString().split('T')[0],
+        amount: sub.plan_item.amount,
+        customer_email: sub.email,
+        customer_phone: sub.phone,
+        customer_id: sub.customer_id,
+        product_id: sub.notes?.product_id || 'product1',
+        product_title: sub.notes?.product_title || 'Subscription',
+        product_description: sub.notes?.product_description || '',
+        notes_email: sub.notes?.customer_email || '',
+        notes_phone: sub.notes?.customer_phone || '',
+        total_count: sub.total_count,
+        paid_count: sub.paid_count || 1,
+        remaining_count: sub.remaining_count || (sub.total_count - (sub.paid_count || 1)),
+        next_charge_at: sub.next_charge_at ? new Date(sub.next_charge_at * 1000).toISOString().split('T')[0] : null
+      }));
+
+      console.log('Formatted subscriptions by notes:', formattedSubscriptions);
+
+      res.json({
+        success: true,
+        subscriptions: formattedSubscriptions
+      });
+      
+    } catch (razorpayError) {
+      console.error('Razorpay API error:', razorpayError);
+      // If customer has no subscriptions, return empty array
+      res.json({
+        success: true,
+        subscriptions: []
+      });
+    }
+
+  } catch (error) {
+    console.error('Error fetching subscriptions by notes:', error);
+    res.status(400).json({ 
+      success: false, 
+      error: error.message 
+    });
+  }
+});
+
 // Get Customer Details
 app.post('/api/customer-details', async (req, res) => {
   try {
