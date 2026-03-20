@@ -225,7 +225,14 @@ app.post('/api/customer-subscriptions-by-notes', async (req, res) => {
       const subscriptions = await razorpay.subscriptions.all();
       
       // Filter subscriptions by checking notes AND customer fields for matching email or phone
+      // AND only include active subscriptions
       const matchingSubscriptions = subscriptions.items.filter(sub => {
+        // Only include active subscriptions
+        if (sub.status !== 'active') {
+          console.log(`Skipping subscription ${sub.id}: status is ${sub.status} (not active)`);
+          return false;
+        }
+        
         // Check email match in multiple places
         const emailMatch = customer_email && (
           sub.notes?.customer_email === customer_email || 
@@ -242,6 +249,7 @@ app.post('/api/customer-subscriptions-by-notes', async (req, res) => {
         const phoneMatch = normalizedCustomerPhone && notesPhone && notesPhone === normalizedCustomerPhone;
         
         console.log(`Checking subscription ${sub.id}:`, {
+          status: sub.status,
           hasNotes: !!sub.notes,
           hasPlanItem: !!sub.plan_item,
           emailMatch,
@@ -257,9 +265,9 @@ app.post('/api/customer-subscriptions-by-notes', async (req, res) => {
         return emailMatch || phoneMatch;
       });
       
-      console.log('Found subscriptions by notes matching:', matchingSubscriptions.length);
+      console.log('Found active subscriptions by notes matching:', matchingSubscriptions.length);
 
-      // Format subscription data with safety checks
+      // Format subscription data with safety checks and enhanced details
       const formattedSubscriptions = matchingSubscriptions.map(sub => ({
         id: sub.id,
         plan_name: sub.plan_id,
@@ -267,21 +275,24 @@ app.post('/api/customer-subscriptions-by-notes', async (req, res) => {
         current_period_start: new Date(sub.start_at * 1000).toISOString().split('T')[0],
         current_period_end: new Date(sub.end_at * 1000).toISOString().split('T')[0],
         amount: sub.plan_item?.amount || 0, // Safe access with fallback
-        customer_email: sub.email,
-        customer_phone: sub.phone,
+        customer_email: sub.email || sub.notes?.customer_email || 'N/A',
+        customer_phone: sub.phone || sub.notes?.customer_phone || 'N/A',
         customer_id: sub.customer_id,
         product_id: sub.notes?.product_id || 'product1',
-        product_title: sub.notes?.product_title || 'Subscription',
+        product_title: sub.notes?.product_title || 'Subscription Plan',
         product_description: sub.notes?.product_description || '',
         notes_email: sub.notes?.customer_email || '',
         notes_phone: sub.notes?.customer_phone || '',
         total_count: sub.total_count,
         paid_count: sub.paid_count || 1,
         remaining_count: sub.remaining_count || (sub.total_count - (sub.paid_count || 1)),
-        next_charge_at: sub.next_charge_at ? new Date(sub.next_charge_at * 1000).toISOString().split('T')[0] : null
+        next_charge_at: sub.next_charge_at ? new Date(sub.next_charge_at * 1000).toISOString().split('T')[0] : null,
+        created_at: new Date(sub.created_at * 1000).toISOString().split('T')[0],
+        short_url: sub.short_url,
+        auth_attempts: sub.auth_attempts || 0
       }));
 
-      console.log('Formatted subscriptions by notes:', formattedSubscriptions);
+      console.log('Formatted active subscriptions:', formattedSubscriptions);
 
       res.json({
         success: true,
@@ -647,6 +658,114 @@ app.post('/api/create-subscription', async (req, res) => {
 
   } catch (error) {
     console.error('Error:', error);
+    res.status(400).json({ 
+      success: false, 
+      error: error.message 
+    });
+  }
+});
+
+// Skip Subscription Payment
+app.post('/api/subscriptions/skip', async (req, res) => {
+  try {
+    const { subscription_id } = req.body;
+
+    if (!subscription_id) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Subscription ID is required' 
+      });
+    }
+
+    console.log('Skipping payment for subscription:', subscription_id);
+
+    // Skip the next payment
+    const subscription = await razorpay.subscriptions.skip(subscription_id);
+
+    console.log('Payment skipped successfully:', subscription.id);
+
+    res.json({
+      success: true,
+      status: subscription.status,
+      message: 'Next payment skipped successfully'
+    });
+
+  } catch (error) {
+    console.error('Error skipping payment:', error);
+    res.status(400).json({ 
+      success: false, 
+      error: error.message 
+    });
+  }
+});
+
+// Resume Subscription
+app.post('/api/subscriptions/resume', async (req, res) => {
+  try {
+    const { subscription_id } = req.body;
+
+    if (!subscription_id) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Subscription ID is required' 
+      });
+    }
+
+    console.log('Resuming subscription:', subscription_id);
+
+    // Resume the subscription
+    const subscription = await razorpay.subscriptions.resume(
+      subscription_id,
+      { resume_at: 'now' }
+    );
+
+    console.log('Subscription resumed successfully:', subscription.id);
+
+    res.json({
+      success: true,
+      status: subscription.status,
+      message: 'Subscription resumed successfully'
+    });
+
+  } catch (error) {
+    console.error('Error resuming subscription:', error);
+    res.status(400).json({ 
+      success: false, 
+      error: error.message 
+    });
+  }
+});
+
+// Cancel Subscription
+app.post('/api/subscriptions/cancel', async (req, res) => {
+  try {
+    const { subscription_id } = req.body;
+
+    if (!subscription_id) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Subscription ID is required' 
+      });
+    }
+
+    console.log('Cancelling subscription:', subscription_id);
+
+    // Cancel the subscription
+    const subscription = await razorpay.subscriptions.cancel(
+      subscription_id,
+      { cancel_at_cycle_end: false }
+    );
+
+    console.log('Subscription cancelled successfully:', subscription.id);
+
+    res.json({
+      success: true,
+      status: subscription.status,
+      message: 'Subscription cancelled successfully'
+    });
+
+  } catch (error) {
+    console.error('Error cancelling subscription:', error);
     res.status(400).json({ 
       success: false, 
       error: error.message 

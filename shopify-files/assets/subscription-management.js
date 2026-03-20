@@ -155,61 +155,61 @@ class SubscriptionManagement {
 
     const progressPercentage = (subscription.paid_count / subscription.total_count) * 100;
     const nextPaymentDate = subscription.next_charge_at ? this.formatDate(subscription.next_charge_at) : 'N/A';
+    const price = (subscription.amount / 100).toFixed(2); // Convert from paise to rupees
 
     return `
-      <div class="bg-white rounded-lg shadow-lg p-6">
-        <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+      <div class="bg-white rounded-lg shadow-md p-6 mb-6" data-subscription-id="${subscription.id}">
+        <div class="flex justify-between items-start mb-4">
           <div class="flex-1">
             <div class="flex items-center gap-3 mb-2">
-              <h3 class="text-xl font-bold">${subscription.plan_name}</h3>
-              <span class="px-3 py-1 rounded-full text-sm font-medium ${statusColors[subscription.status]}">
-                ${statusText[subscription.status]}
+              <h3 class="text-xl font-semibold text-gray-900">${subscription.product_title}</h3>
+              <span class="px-3 py-1 rounded-full text-sm font-medium ${statusColors[subscription.status] || 'bg-gray-100 text-gray-800'}">
+                ${statusText[subscription.status] || subscription.status}
               </span>
             </div>
-            
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm mb-4">
-              <div>
-                <p class="text-gray-600">Subscription ID:</p>
-                <p class="font-medium">${subscription.id}</p>
-              </div>
-              <div>
-                <p class="text-gray-600">Monthly Amount:</p>
-                <p class="font-medium">₹${subscription.amount}/month</p>
-              </div>
-              <div>
-                <p class="text-gray-600">Current Period:</p>
-                <p class="font-medium">${this.formatDate(subscription.current_period_start)} - ${this.formatDate(subscription.current_period_end)}</p>
-              </div>
-              <div>
-                <p class="text-gray-600">Next Payment:</p>
-                <p class="font-medium">${nextPaymentDate}</p>
-              </div>
-              <div>
-                <p class="text-gray-600">Progress:</p>
-                <p class="font-medium">${subscription.paid_count}/${subscription.total_count} payments completed</p>
-              </div>
-              <div>
-                <p class="text-gray-600">Customer Email:</p>
-                <p class="font-medium">${subscription.customer_email}</p>
-              </div>
-            </div>
-            
-            <!-- Progress Bar -->
-            <div class="mb-4">
-              <div class="flex justify-between text-sm text-gray-600 mb-1">
-                <span>Subscription Progress</span>
-                <span>${Math.round(progressPercentage)}%</span>
-              </div>
-              <div class="w-full bg-gray-200 rounded-full h-3">
-                <div class="bg-blue-600 h-3 rounded-full transition-all duration-300" style="width: ${progressPercentage}%"></div>
-              </div>
-              <p class="text-xs text-gray-500 mt-1">${subscription.remaining_count} payments remaining</p>
+            <p class="text-gray-600 mb-3">${subscription.product_description}</p>
+            <div class="text-sm text-gray-500">
+              <span>Subscription ID: ${subscription.id}</span>
             </div>
           </div>
-          
-          <div class="flex flex-col gap-2 min-w-[150px]">
-            ${this.getActionButtons(subscription)}
+          <div class="text-right">
+            <div class="text-2xl font-bold text-gray-900">₹${price}</div>
+            <div class="text-sm text-gray-500">per month</div>
           </div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+          <div class="bg-gray-50 p-4 rounded-lg">
+            <div class="text-sm text-gray-500 mb-1">Customer Email</div>
+            <div class="font-medium text-gray-900">${subscription.customer_email || 'N/A'}</div>
+          </div>
+          <div class="bg-gray-50 p-4 rounded-lg">
+            <div class="text-sm text-gray-500 mb-1">Customer Phone</div>
+            <div class="font-medium text-gray-900">${subscription.customer_phone || 'N/A'}</div>
+          </div>
+          <div class="bg-gray-50 p-4 rounded-lg">
+            <div class="text-sm text-gray-500 mb-1">Next Charge Date</div>
+            <div class="font-medium text-gray-900">${nextPaymentDate}</div>
+          </div>
+          <div class="bg-gray-50 p-4 rounded-lg">
+            <div class="text-sm text-gray-500 mb-1">Payment Progress</div>
+            <div class="font-medium text-gray-900">${subscription.paid_count} / ${subscription.total_count} payments</div>
+            <div class="w-full bg-gray-200 rounded-full h-2 mt-2">
+              <div class="bg-blue-600 h-2 rounded-full" style="width: ${progressPercentage}%"></div>
+            </div>
+          </div>
+          <div class="bg-gray-50 p-4 rounded-lg">
+            <div class="text-sm text-gray-500 mb-1">Started On</div>
+            <div class="font-medium text-gray-900">${this.formatDate(subscription.current_period_start)}</div>
+          </div>
+          <div class="bg-gray-50 p-4 rounded-lg">
+            <div class="text-sm text-gray-500 mb-1">Ends On</div>
+            <div class="font-medium text-gray-900">${this.formatDate(subscription.current_period_end)}</div>
+          </div>
+        </div>
+
+        <div class="flex flex-col sm:flex-row gap-3">
+          ${this.getActionButtons(subscription)}
         </div>
       </div>
     `;
@@ -365,21 +365,136 @@ class SubscriptionManagement {
     }
   }
   
-  // Action functions
-  pauseSubscription(subscriptionId) {
-    this.showModal('Pause Subscription', 'Are you sure you want to pause this subscription?', 'pause', subscriptionId);
+  // Action methods
+  async pauseSubscription(subscriptionId) {
+    try {
+      this.showLoading();
+      
+      const response = await fetch(`${this.apiBase}/api/subscriptions/pause`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          subscription_id: subscriptionId
+        })
+      });
+      
+      const result = await response.json();
+      
+      if (result.success) {
+        this.showNotification('Subscription paused successfully', 'success');
+        await this.loadSubscriptions(); // Reload to show updated status
+      } else {
+        this.showNotification('Failed to pause subscription: ' + result.error, 'error');
+      }
+      
+      this.hideLoading();
+    } catch (error) {
+      console.error('Error pausing subscription:', error);
+      this.showNotification('Error pausing subscription: ' + error.message, 'error');
+      this.hideLoading();
+    }
   }
-  
-  resumeSubscription(subscriptionId) {
-    this.showModal('Resume Subscription', 'Are you sure you want to resume this subscription?', 'resume', subscriptionId);
+
+  async resumeSubscription(subscriptionId) {
+    try {
+      this.showLoading();
+      
+      const response = await fetch(`${this.apiBase}/api/subscriptions/resume`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          subscription_id: subscriptionId
+        })
+      });
+      
+      const result = await response.json();
+      
+      if (result.success) {
+        this.showNotification('Subscription resumed successfully', 'success');
+        await this.loadSubscriptions(); // Reload to show updated status
+      } else {
+        this.showNotification('Failed to resume subscription: ' + result.error, 'error');
+      }
+      
+      this.hideLoading();
+    } catch (error) {
+      console.error('Error resuming subscription:', error);
+      this.showNotification('Error resuming subscription: ' + error.message, 'error');
+      this.hideLoading();
+    }
   }
-  
-  skipPayment(subscriptionId) {
-    this.showModal('Skip Payment', 'Are you sure you want to skip the next payment?', 'skip', subscriptionId);
+
+  async skipPayment(subscriptionId) {
+    try {
+      this.showLoading();
+      
+      const response = await fetch(`${this.apiBase}/api/subscriptions/skip`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          subscription_id: subscriptionId
+        })
+      });
+      
+      const result = await response.json();
+      
+      if (result.success) {
+        this.showNotification('Next payment skipped successfully', 'success');
+        await this.loadSubscriptions(); // Reload to show updated status
+      } else {
+        this.showNotification('Failed to skip payment: ' + result.error, 'error');
+      }
+      
+      this.hideLoading();
+    } catch (error) {
+      console.error('Error skipping payment:', error);
+      this.showNotification('Error skipping payment: ' + error.message, 'error');
+      this.hideLoading();
+    }
   }
-  
-  cancelSubscription(subscriptionId) {
-    this.showModal('Cancel Subscription', 'Are you sure you want to cancel this subscription? This action cannot be undone.', 'cancel', subscriptionId);
+
+  async cancelSubscription(subscriptionId) {
+    // Show confirmation dialog
+    const confirmed = confirm('Are you sure you want to cancel this subscription? This action cannot be undone.');
+    
+    if (!confirmed) {
+      return;
+    }
+    
+    try {
+      this.showLoading();
+      
+      const response = await fetch(`${this.apiBase}/api/subscriptions/cancel`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          subscription_id: subscriptionId
+        })
+      });
+      
+      const result = await response.json();
+      
+      if (result.success) {
+        this.showNotification('Subscription cancelled successfully', 'success');
+        await this.loadSubscriptions(); // Reload to show updated status
+      } else {
+        this.showNotification('Failed to cancel subscription: ' + result.error, 'error');
+      }
+      
+      this.hideLoading();
+    } catch (error) {
+      console.error('Error cancelling subscription:', error);
+      this.showNotification('Error cancelling subscription: ' + error.message, 'error');
+      this.hideLoading();
+    }
   }
   
   createNewSubscription() {
