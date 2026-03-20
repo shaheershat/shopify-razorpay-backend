@@ -24,12 +24,42 @@ class SubscriptionManagement {
       // Debug: Check configuration
       console.log('Loading subscriptions with config:', {
         apiBase: this.apiBase,
-        customerEmail: this.customerEmail
+        customerEmail: this.customerEmail,
+        customerId: this.customerId
       });
       
-      if (!this.customerEmail) {
+      // Try customer email first, then try to find by customer ID
+      let customerEmail = this.customerEmail;
+      
+      if (!customerEmail && this.customerId) {
+        console.log('No customer email found, but have customer ID. Trying to fetch customer details...');
+        // Try to get customer details from Shopify
+        try {
+          const customerResponse = await fetch(`${this.apiBase}/api/customer-details`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+              customer_id: this.customerId
+            })
+          });
+          
+          if (customerResponse.ok) {
+            const customerData = await customerResponse.json();
+            if (customerData.success && customerData.customer) {
+              customerEmail = customerData.customer.email;
+              console.log('Found customer email:', customerEmail);
+            }
+          }
+        } catch (error) {
+          console.log('Could not fetch customer details:', error.message);
+        }
+      }
+      
+      if (!customerEmail) {
         console.error('No customer email found');
-        this.showError('Customer email not found');
+        this.showError('Customer email not found. Please log in again.');
         this.hideLoading();
         return;
       }
@@ -41,7 +71,7 @@ class SubscriptionManagement {
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-          customer_email: this.customerEmail
+          customer_email: customerEmail
         })
       });
       
@@ -53,6 +83,36 @@ class SubscriptionManagement {
       if (result.success) {
         this.subscriptions = result.subscriptions || [];
         console.log('Subscriptions loaded:', this.subscriptions.length);
+        
+        // If no subscriptions, check if we should try phone number lookup
+        if (this.subscriptions.length === 0) {
+          console.log('No subscriptions found for email, trying phone lookup...');
+          // Try phone number lookup if available
+          const customerPhone = this.getCustomerPhone();
+          if (customerPhone) {
+            try {
+              const phoneResponse = await fetch(`${this.apiBase}/api/customer-subscriptions-by-phone`, {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                  customer_phone: customerPhone
+                })
+              });
+              
+              if (phoneResponse.ok) {
+                const phoneResult = await phoneResponse.json();
+                if (phoneResult.success && phoneResult.subscriptions.length > 0) {
+                  this.subscriptions = phoneResult.subscriptions;
+                  console.log('Found subscriptions by phone:', this.subscriptions.length);
+                }
+              }
+            } catch (phoneError) {
+              console.log('Phone lookup failed:', phoneError.message);
+            }
+          }
+        }
       } else {
         console.error('Failed to load subscriptions:', result.error);
         this.subscriptions = [];
@@ -331,6 +391,22 @@ class SubscriptionManagement {
   
   createNewSubscription() {
     window.location.href = '/collections/all';
+  }
+  
+  // Helper method to get customer phone
+  getCustomerPhone() {
+    // Try to get phone from template config or from customer object
+    const phoneFromConfig = window.subscriptionConfig?.customerPhone;
+    if (phoneFromConfig && phoneFromConfig !== 'null' && phoneFromConfig !== '') {
+      return phoneFromConfig;
+    }
+    
+    // Try to get from Shopify customer object if available
+    if (window.Shopify && window.Shopify.customer && window.Shopify.customer.phone) {
+      return window.Shopify.customer.phone;
+    }
+    
+    return null;
   }
   
   // Utility functions

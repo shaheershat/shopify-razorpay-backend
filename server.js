@@ -196,6 +196,115 @@ app.post('/api/verify-payment-and-activate', async (req, res) => {
   }
 });
 
+// Get Customer Details
+app.post('/api/customer-details', async (req, res) => {
+  try {
+    const { customer_id } = req.body;
+    
+    console.log('Fetching customer details for ID:', customer_id);
+    
+    if (!customer_id) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Customer ID is required' 
+      });
+    }
+
+    // Fetch customer from Shopify
+    const shopifyCustomer = await shopify.rest.get({
+      path: `customers/${customer_id}`
+    });
+    
+    console.log('Shopify customer details:', shopifyCustomer.body);
+
+    res.json({
+      success: true,
+      customer: {
+        id: shopifyCustomer.body.id,
+        email: shopifyCustomer.body.email,
+        phone: shopifyCustomer.body.phone,
+        first_name: shopifyCustomer.body.first_name,
+        last_name: shopifyCustomer.body.last_name
+      }
+    });
+    
+  } catch (error) {
+    console.error('Error fetching customer details:', error);
+    res.status(400).json({ 
+      success: false, 
+      error: error.message 
+    });
+  }
+});
+
+// Get Customer Subscriptions by Phone
+app.post('/api/customer-subscriptions-by-phone', async (req, res) => {
+  try {
+    const { customer_phone } = req.body;
+    
+    console.log('Fetching subscriptions for customer phone:', customer_phone);
+    
+    if (!customer_phone) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Customer phone is required' 
+      });
+    }
+
+    // Fetch all subscriptions from Razorpay
+    try {
+      const subscriptions = await razorpay.subscriptions.all();
+      
+      // Filter by phone number
+      const customerSubscriptions = subscriptions.items.filter(sub => {
+        return sub.phone === customer_phone || 
+               (sub.notes && sub.notes.customer_phone === customer_phone);
+      });
+      
+      console.log('Found subscriptions by phone:', customerSubscriptions.length);
+
+      // Format subscription data
+      const formattedSubscriptions = customerSubscriptions.map(sub => ({
+        id: sub.id,
+        plan_name: sub.plan_id,
+        status: sub.status,
+        current_period_start: new Date(sub.start_at * 1000).toISOString().split('T')[0],
+        current_period_end: new Date(sub.end_at * 1000).toISOString().split('T')[0],
+        amount: sub.plan_item.amount,
+        customer_email: sub.email,
+        customer_phone: sub.phone,
+        product_id: sub.notes?.product_id || 'product1',
+        total_count: sub.total_count,
+        paid_count: sub.paid_count || 1,
+        remaining_count: sub.remaining_count || (sub.total_count - (sub.paid_count || 1)),
+        next_charge_at: sub.next_charge_at ? new Date(sub.next_charge_at * 1000).toISOString().split('T')[0] : null
+      }));
+
+      console.log('Formatted subscriptions by phone:', formattedSubscriptions);
+
+      res.json({
+        success: true,
+        subscriptions: formattedSubscriptions
+      });
+      
+    } catch (razorpayError) {
+      console.error('Razorpay API error:', razorpayError);
+      // If customer has no subscriptions, return empty array
+      res.json({
+        success: true,
+        subscriptions: []
+      });
+    }
+
+  } catch (error) {
+    console.error('Error fetching subscriptions by phone:', error);
+    res.status(400).json({ 
+      success: false, 
+      error: error.message 
+    });
+  }
+});
+
 // Get Customer Subscriptions
 app.post('/api/customer-subscriptions', async (req, res) => {
   try {
@@ -481,10 +590,14 @@ app.post('/webhooks/razorpay', express.raw({type: 'application/json'}), async (r
         // Update your database
         break;
 
-      case 'payment.authorized':
-        console.log('Payment authorized:', event.payload.payment.entity.id);
-        // Create order in Shopify
-        await createShopifyOrder(event.payload.subscription.entity);
+      case 'subscription.activated':
+        console.log('Subscription activated:', event.payload.subscription.entity.id);
+        // Create order in Shopify for activated subscription
+        try {
+          await createShopifyOrder(event.payload.subscription.entity);
+        } catch (orderError) {
+          console.error('Failed to create Shopify order for activated subscription:', orderError);
+        }
         break;
 
       case 'payment.failed':
@@ -509,32 +622,70 @@ async function createShopifyOrder(subscriptionData) {
   try {
     const shopifyUrl = `https://${process.env.SHOPIFY_STORE_NAME}/admin/api/2023-10/orders.json`;
     
+    console.log('Creating Shopify order with data:', subscriptionData);
+    
+    // Get customer info from subscription data
+    const customerEmail = subscriptionData.email || subscriptionData.notes?.customer_email;
+    const customerPhone = subscriptionData.phone || subscriptionData.notes?.customer_phone;
+    const variantId = subscriptionData.notes?.product_id || subscriptionData.product_id;
+    
+    // Get plan details from Razorpay to get correct amount
+    let planAmount = 0;
+    try {
+      const plan = await razorpay.plans.fetch(subscriptionData.plan_id);
+      planAmount = plan.item.amount; // Amount in paise
+      console.log('Plan amount:', planAmount);
+    } catch (planError) {
+      console.log('Could not fetch plan details, using fallback amount');
+      planAmount = subscriptionData.charge_at || 1000; // Fallback to 10 rupees
+    }
+    
     const orderData = {
       order: {
-        email: subscriptionData.email || subscriptionData.notes?.customer_email,
+        email: customerEmail,
+        phone: customerPhone,
         financial_status: 'paid',
         line_items: [
           {
-            variant_id: getVariantId(subscriptionData.notes?.product_id),
+            variant_id: variantId,
             quantity: 1,
-            title: `${subscriptionData.plan_id} - Subscription`,
-            price: (subscriptionData.charge_at / 100).toString(), // Convert from paise to rupees
+            title: `Subscription - ${subscriptionData.plan_id}`,
+            price: (planAmount / 100).toString(), // Convert from paise to rupees
             taxable: true
           }
         ],
-        note: `Subscription ID: ${subscriptionData.id} | Plan: ${subscriptionData.plan_id}`,
-        tags: ['subscription', 'razorpay', 'active'],
+        note: `Subscription ID: ${subscriptionData.id} | Plan: ${subscriptionData.plan_id} | Customer: ${customerEmail} | Phone: ${customerPhone}`,
+        tags: ['subscription', 'razorpay', 'active', 'autopay'],
+        customer: {
+          email: customerEmail,
+          phone: customerPhone,
+          first_name: customerEmail?.split('@')[0] || 'Customer',
+          last_name: 'User'
+        },
         shipping_address: {
-          first_name: subscriptionData.customer?.name?.split(' ')[0] || 'Customer',
-          last_name: subscriptionData.customer?.name?.split(' ')[1] || 'Name',
+          first_name: customerEmail?.split('@')[0] || 'Customer',
+          last_name: 'User',
           address1: subscriptionData.notes?.address || 'Default Address',
           city: subscriptionData.notes?.city || 'Default City',
           province: subscriptionData.notes?.state || 'Default State',
           country: 'IN',
-          zip: subscriptionData.notes?.postal_code || '000000'
+          zip: subscriptionData.notes?.postal_code || '000000',
+          phone: customerPhone
+        },
+        billing_address: {
+          first_name: customerEmail?.split('@')[0] || 'Customer',
+          last_name: 'User',
+          address1: subscriptionData.notes?.address || 'Default Address',
+          city: subscriptionData.notes?.city || 'Default City',
+          province: subscriptionData.notes?.state || 'Default State',
+          country: 'IN',
+          zip: subscriptionData.notes?.postal_code || '000000',
+          phone: customerPhone
         }
       }
     };
+
+    console.log('Shopify order data:', JSON.stringify(orderData, null, 2));
 
     const response = await axios.post(shopifyUrl, orderData, {
       headers: {
@@ -543,11 +694,11 @@ async function createShopifyOrder(subscriptionData) {
       }
     });
 
-    console.log('Shopify order created:', response.data.order.id);
+    console.log('✅ Shopify order created:', response.data.order.id);
     return response.data.order;
 
   } catch (error) {
-    console.error('Error creating Shopify order:', error.response?.data || error.message);
+    console.error('❌ Error creating Shopify order:', error.response?.data || error.message);
     throw error;
   }
 }
