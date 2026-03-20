@@ -224,21 +224,21 @@ app.post('/api/customer-subscriptions-by-notes', async (req, res) => {
     try {
       const subscriptions = await razorpay.subscriptions.all();
       
-      // Filter subscriptions by checking notes for matching email or phone
+      // Filter subscriptions by checking notes AND customer fields for matching email or phone
       const matchingSubscriptions = subscriptions.items.filter(sub => {
-        // Check if subscription has notes and plan_item
-        if (!sub.notes || !sub.plan_item) {
-          console.log(`Skipping subscription ${sub.id}: missing notes or plan_item`);
-          return false;
-        }
+        // Check email match in multiple places
+        const emailMatch = customer_email && (
+          sub.notes?.customer_email === customer_email || 
+          sub.notes?.email === customer_email ||
+          sub.email === customer_email ||
+          sub.customer_email === customer_email
+        );
         
-        // Check email match in notes (exact match)
-        const emailMatch = customer_email && 
-          (sub.notes.customer_email === customer_email || 
-           sub.notes.email === customer_email);
-        
-        // Check phone match in notes (normalize both for comparison)
-        const notesPhone = normalizePhone(sub.notes.customer_phone) || normalizePhone(sub.notes.phone);
+        // Check phone match in multiple places (normalize both for comparison)
+        const notesPhone = normalizePhone(sub.notes?.customer_phone) || 
+                          normalizePhone(sub.notes?.phone) || 
+                          normalizePhone(sub.phone) || 
+                          normalizePhone(sub.customer_phone);
         const phoneMatch = normalizedCustomerPhone && notesPhone && notesPhone === normalizedCustomerPhone;
         
         console.log(`Checking subscription ${sub.id}:`, {
@@ -246,10 +246,12 @@ app.post('/api/customer-subscriptions-by-notes', async (req, res) => {
           hasPlanItem: !!sub.plan_item,
           emailMatch,
           phoneMatch,
-          notesEmail: sub.notes.customer_email,
-          notesPhone: sub.notes.customer_phone,
+          notesEmail: sub.notes?.customer_email,
+          notesPhone: sub.notes?.customer_phone,
           normalizedNotesPhone: notesPhone,
-          subPhone: sub.phone
+          subEmail: sub.email,
+          subPhone: sub.phone,
+          subCustomerEmail: sub.customer_email
         });
         
         return emailMatch || phoneMatch;
