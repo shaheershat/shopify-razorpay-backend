@@ -226,8 +226,11 @@ app.post('/api/customer-subscriptions-by-notes', async (req, res) => {
       
       // Filter subscriptions by checking notes for matching email or phone
       const matchingSubscriptions = subscriptions.items.filter(sub => {
-        // Check if subscription has notes
-        if (!sub.notes) return false;
+        // Check if subscription has notes and plan_item
+        if (!sub.notes || !sub.plan_item) {
+          console.log(`Skipping subscription ${sub.id}: missing notes or plan_item`);
+          return false;
+        }
         
         // Check email match in notes (exact match)
         const emailMatch = customer_email && 
@@ -239,11 +242,14 @@ app.post('/api/customer-subscriptions-by-notes', async (req, res) => {
         const phoneMatch = normalizedCustomerPhone && notesPhone && notesPhone === normalizedCustomerPhone;
         
         console.log(`Checking subscription ${sub.id}:`, {
+          hasNotes: !!sub.notes,
+          hasPlanItem: !!sub.plan_item,
           emailMatch,
           phoneMatch,
           notesEmail: sub.notes.customer_email,
           notesPhone: sub.notes.customer_phone,
-          normalizedNotesPhone: notesPhone
+          normalizedNotesPhone: notesPhone,
+          subPhone: sub.phone
         });
         
         return emailMatch || phoneMatch;
@@ -251,14 +257,14 @@ app.post('/api/customer-subscriptions-by-notes', async (req, res) => {
       
       console.log('Found subscriptions by notes matching:', matchingSubscriptions.length);
 
-      // Format subscription data
+      // Format subscription data with safety checks
       const formattedSubscriptions = matchingSubscriptions.map(sub => ({
         id: sub.id,
         plan_name: sub.plan_id,
         status: sub.status,
         current_period_start: new Date(sub.start_at * 1000).toISOString().split('T')[0],
         current_period_end: new Date(sub.end_at * 1000).toISOString().split('T')[0],
-        amount: sub.plan_item.amount,
+        amount: sub.plan_item?.amount || 0, // Safe access with fallback
         customer_email: sub.email,
         customer_phone: sub.phone,
         customer_id: sub.customer_id,
