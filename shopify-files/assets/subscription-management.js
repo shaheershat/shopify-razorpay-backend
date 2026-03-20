@@ -11,6 +11,7 @@ class SubscriptionManagement {
     this.subscriptions = [];
     this.currentAction = null;
     this.currentSubscriptionId = null;
+    this.currentFilter = 'active'; // Default filter
     
     this.init();
   }
@@ -18,6 +19,22 @@ class SubscriptionManagement {
   init() {
     this.loadSubscriptions();
     this.initializeModal();
+    this.initializeTabListeners();
+  }
+  
+  initializeTabListeners() {
+    // Add event delegation for tab clicks
+    document.addEventListener('click', (e) => {
+      if (e.target.classList.contains('subscription-tab')) {
+        const filter = e.target.dataset.filter;
+        this.setFilter(filter);
+      }
+    });
+  }
+  
+  setFilter(filter) {
+    this.currentFilter = filter;
+    this.renderSubscriptions();
   }
   
   initializeModal() {
@@ -209,15 +226,63 @@ class SubscriptionManagement {
 
     if (loadingState) loadingState.classList.add('hidden');
 
-    if (this.subscriptions.length === 0) {
+    // Filter subscriptions based on current filter
+    const filteredSubscriptions = this.subscriptions.filter(sub => sub.status === this.currentFilter);
+
+    if (filteredSubscriptions.length === 0) {
       if (emptyState) emptyState.classList.remove('hidden');
       if (subscriptionsList) subscriptionsList.classList.add('hidden');
     } else {
       if (emptyState) emptyState.classList.add('hidden');
       if (subscriptionsList) subscriptionsList.classList.remove('hidden');
       
-      subscriptionsList.innerHTML = this.subscriptions.map(subscription => this.createSubscriptionCard(subscription)).join('');
+      subscriptionsList.innerHTML = this.renderSubscriptionTabs() + 
+        filteredSubscriptions.map(subscription => this.createSubscriptionCard(subscription)).join('');
     }
+  }
+
+  renderSubscriptionTabs() {
+    const counts = {
+      active: this.subscriptions.filter(s => s.status === 'active').length,
+      paused: this.subscriptions.filter(s => s.status === 'paused').length,
+      cancelled: this.subscriptions.filter(s => s.status === 'cancelled').length,
+      completed: this.subscriptions.filter(s => s.status === 'completed').length
+    };
+
+    return `
+      <div class="bg-white rounded-lg shadow-md p-4 mb-6">
+        <div class="flex flex-wrap gap-2 border-b border-gray-200">
+          <button class="subscription-tab px-4 py-2 font-medium text-sm border-b-2 transition-colors ${
+            this.currentFilter === 'active' 
+              ? 'border-blue-500 text-blue-600' 
+              : 'border-transparent text-gray-500 hover:text-gray-700'
+          }" data-filter="active">
+            Active (${counts.active})
+          </button>
+          <button class="subscription-tab px-4 py-2 font-medium text-sm border-b-2 transition-colors ${
+            this.currentFilter === 'paused' 
+              ? 'border-blue-500 text-blue-600' 
+              : 'border-transparent text-gray-500 hover:text-gray-700'
+          }" data-filter="paused">
+            Paused (${counts.paused})
+          </button>
+          <button class="subscription-tab px-4 py-2 font-medium text-sm border-b-2 transition-colors ${
+            this.currentFilter === 'cancelled' 
+              ? 'border-blue-500 text-blue-600' 
+              : 'border-transparent text-gray-500 hover:text-gray-700'
+          }" data-filter="cancelled">
+            Cancelled (${counts.cancelled})
+          </button>
+          <button class="subscription-tab px-4 py-2 font-medium text-sm border-b-2 transition-colors ${
+            this.currentFilter === 'completed' 
+              ? 'border-blue-500 text-blue-600' 
+              : 'border-transparent text-gray-500 hover:text-gray-700'
+          }" data-filter="completed">
+            Completed (${counts.completed})
+          </button>
+        </div>
+      </div>
+    `;
   }
   
   createSubscriptionCard(subscription) {
@@ -237,60 +302,62 @@ class SubscriptionManagement {
 
     const progressPercentage = (subscription.paid_count / subscription.total_count) * 100;
     const nextPaymentDate = subscription.next_charge_at ? this.formatDate(subscription.next_charge_at) : 'N/A';
-    const price = (subscription.amount / 100).toFixed(2); // Convert from paise to rupees
+    
+    // Convert amount from paise to rupees
+    const price = (subscription.amount / 100).toFixed(2);
 
     return `
-      <div class="bg-white rounded-lg shadow-md p-6 mb-6" data-subscription-id="${subscription.id}">
-        <div class="flex justify-between items-start mb-4">
-          <div class="flex-1">
-            <div class="flex items-center gap-3 mb-2">
-              <h3 class="text-xl font-semibold text-gray-900">${subscription.product_title}</h3>
-              <span class="px-3 py-1 rounded-full text-sm font-medium ${statusColors[subscription.status] || 'bg-gray-100 text-gray-800'}">
+      <div class="bg-white rounded-lg shadow-md p-4 md:p-6 mb-4 md:mb-6" data-subscription-id="${subscription.id}">
+        <div class="flex flex-col md:flex-row md:justify-between md:items-start mb-4">
+          <div class="flex-1 mb-4 md:mb-0">
+            <div class="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 mb-2">
+              <h3 class="text-lg md:text-xl font-semibold text-gray-900">${subscription.product_title}</h3>
+              <span class="px-3 py-1 rounded-full text-xs md:text-sm font-medium ${statusColors[subscription.status] || 'bg-gray-100 text-gray-800'}">
                 ${statusText[subscription.status] || subscription.status}
               </span>
             </div>
-            <p class="text-gray-600 mb-3">${subscription.product_description}</p>
-            <div class="text-sm text-gray-500">
+            <p class="text-gray-600 text-sm md:text-base mb-2">${subscription.product_description}</p>
+            <div class="text-xs md:text-sm text-gray-500">
               <span>Subscription ID: ${subscription.id}</span>
             </div>
           </div>
-          <div class="text-right">
-            <div class="text-2xl font-bold text-gray-900">₹${price}</div>
-            <div class="text-sm text-gray-500">per month</div>
+          <div class="text-left md:text-right">
+            <div class="text-xl md:text-2xl font-bold text-gray-900">₹${price}</div>
+            <div class="text-xs md:text-sm text-gray-500">per month</div>
           </div>
         </div>
 
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-          <div class="bg-gray-50 p-4 rounded-lg">
-            <div class="text-sm text-gray-500 mb-1">Customer Email</div>
-            <div class="font-medium text-gray-900">${subscription.customer_email || 'N/A'}</div>
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 md:gap-4 mb-6">
+          <div class="bg-gray-50 p-3 md:p-4 rounded-lg">
+            <div class="text-xs md:text-sm text-gray-500 mb-1">Customer Email</div>
+            <div class="text-sm md:font-medium text-gray-900 break-all">${subscription.customer_email || 'N/A'}</div>
           </div>
-          <div class="bg-gray-50 p-4 rounded-lg">
-            <div class="text-sm text-gray-500 mb-1">Customer Phone</div>
-            <div class="font-medium text-gray-900">${subscription.customer_phone || 'N/A'}</div>
+          <div class="bg-gray-50 p-3 md:p-4 rounded-lg">
+            <div class="text-xs md:text-sm text-gray-500 mb-1">Customer Phone</div>
+            <div class="text-sm md:font-medium text-gray-900">${subscription.customer_phone || 'N/A'}</div>
           </div>
-          <div class="bg-gray-50 p-4 rounded-lg">
-            <div class="text-sm text-gray-500 mb-1">Next Charge Date</div>
-            <div class="font-medium text-gray-900">${nextPaymentDate}</div>
+          <div class="bg-gray-50 p-3 md:p-4 rounded-lg">
+            <div class="text-xs md:text-sm text-gray-500 mb-1">Next Charge Date</div>
+            <div class="text-sm md:font-medium text-gray-900">${nextPaymentDate}</div>
           </div>
-          <div class="bg-gray-50 p-4 rounded-lg">
-            <div class="text-sm text-gray-500 mb-1">Payment Progress</div>
-            <div class="font-medium text-gray-900">${subscription.paid_count} / ${subscription.total_count} payments</div>
+          <div class="bg-gray-50 p-3 md:p-4 rounded-lg">
+            <div class="text-xs md:text-sm text-gray-500 mb-1">Payment Progress</div>
+            <div class="text-sm md:font-medium text-gray-900">${subscription.paid_count} / ${subscription.total_count} payments</div>
             <div class="w-full bg-gray-200 rounded-full h-2 mt-2">
-              <div class="bg-blue-600 h-2 rounded-full" style="width: ${progressPercentage}%"></div>
+              <div class="bg-blue-600 h-2 rounded-full transition-all duration-300" style="width: ${progressPercentage}%"></div>
             </div>
           </div>
-          <div class="bg-gray-50 p-4 rounded-lg">
-            <div class="text-sm text-gray-500 mb-1">Started On</div>
-            <div class="font-medium text-gray-900">${this.formatDate(subscription.current_period_start)}</div>
+          <div class="bg-gray-50 p-3 md:p-4 rounded-lg">
+            <div class="text-xs md:text-sm text-gray-500 mb-1">Started On</div>
+            <div class="text-sm md:font-medium text-gray-900">${this.formatDate(subscription.current_period_start)}</div>
           </div>
-          <div class="bg-gray-50 p-4 rounded-lg">
-            <div class="text-sm text-gray-500 mb-1">Ends On</div>
-            <div class="font-medium text-gray-900">${this.formatDate(subscription.current_period_end)}</div>
+          <div class="bg-gray-50 p-3 md:p-4 rounded-lg">
+            <div class="text-xs md:text-sm text-gray-500 mb-1">Ends On</div>
+            <div class="text-sm md:font-medium text-gray-900">${this.formatDate(subscription.current_period_end)}</div>
           </div>
         </div>
 
-        <div class="flex flex-col sm:flex-row gap-3">
+        <div class="flex flex-col sm:flex-row gap-2 sm:gap-3">
           ${this.getActionButtons(subscription)}
         </div>
       </div>

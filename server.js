@@ -225,14 +225,8 @@ app.post('/api/customer-subscriptions-by-notes', async (req, res) => {
       const subscriptions = await razorpay.subscriptions.all();
       
       // Filter subscriptions by checking notes AND customer fields for matching email or phone
-      // AND only include active subscriptions
+      // Include ALL statuses (active, paused, cancelled, completed)
       const matchingSubscriptions = subscriptions.items.filter(sub => {
-        // Only include active subscriptions
-        if (sub.status !== 'active') {
-          console.log(`Skipping subscription ${sub.id}: status is ${sub.status} (not active)`);
-          return false;
-        }
-        
         // Check email match in multiple places
         const emailMatch = customer_email && (
           sub.notes?.customer_email === customer_email || 
@@ -265,34 +259,54 @@ app.post('/api/customer-subscriptions-by-notes', async (req, res) => {
         return emailMatch || phoneMatch;
       });
       
-      console.log('Found active subscriptions by notes matching:', matchingSubscriptions.length);
+      console.log('Found all subscriptions by notes matching:', matchingSubscriptions.length);
 
       // Format subscription data with safety checks and enhanced details
-      const formattedSubscriptions = matchingSubscriptions.map(sub => ({
-        id: sub.id,
-        plan_name: sub.plan_id,
-        status: sub.status,
-        current_period_start: new Date(sub.start_at * 1000).toISOString().split('T')[0],
-        current_period_end: new Date(sub.end_at * 1000).toISOString().split('T')[0],
-        amount: sub.plan_item?.amount || 0, // Safe access with fallback
-        customer_email: sub.email || sub.notes?.customer_email || 'N/A',
-        customer_phone: sub.phone || sub.notes?.customer_phone || 'N/A',
-        customer_id: sub.customer_id,
-        product_id: sub.notes?.product_id || 'product1',
-        product_title: sub.notes?.product_title || 'Subscription Plan',
-        product_description: sub.notes?.product_description || '',
-        notes_email: sub.notes?.customer_email || '',
-        notes_phone: sub.notes?.customer_phone || '',
-        total_count: sub.total_count,
-        paid_count: sub.paid_count || 1,
-        remaining_count: sub.remaining_count || (sub.total_count - (sub.paid_count || 1)),
-        next_charge_at: sub.next_charge_at ? new Date(sub.next_charge_at * 1000).toISOString().split('T')[0] : null,
-        created_at: new Date(sub.created_at * 1000).toISOString().split('T')[0],
-        short_url: sub.short_url,
-        auth_attempts: sub.auth_attempts || 0
-      }));
+      const formattedSubscriptions = [];
+      
+      for (const sub of matchingSubscriptions) {
+        // Get amount from plan_item or fallback to 0
+        let amount = 0;
+        if (sub.plan_item && sub.plan_item.amount) {
+          amount = sub.plan_item.amount;
+        } else if (sub.plan_id) {
+          // Try to fetch plan details if amount is missing
+          try {
+            const plan = await razorpay.plans.fetch(sub.plan_id);
+            amount = plan.item.amount;
+            console.log(`Fetched amount from plan ${sub.plan_id}:`, amount);
+          } catch (planError) {
+            console.log(`Could not fetch plan ${sub.plan_id}, using fallback amount`);
+            amount = 0;
+          }
+        }
+        
+        formattedSubscriptions.push({
+          id: sub.id,
+          plan_name: sub.plan_id,
+          status: sub.status,
+          current_period_start: new Date(sub.start_at * 1000).toISOString().split('T')[0],
+          current_period_end: new Date(sub.end_at * 1000).toISOString().split('T')[0],
+          amount: amount, // Amount in paise
+          customer_email: sub.email || sub.notes?.customer_email || 'N/A',
+          customer_phone: sub.phone || sub.notes?.customer_phone || 'N/A',
+          customer_id: sub.customer_id,
+          product_id: sub.notes?.product_id || 'product1',
+          product_title: sub.notes?.product_title || 'Subscription Plan',
+          product_description: sub.notes?.product_description || '',
+          notes_email: sub.notes?.customer_email || '',
+          notes_phone: sub.notes?.customer_phone || '',
+          total_count: sub.total_count,
+          paid_count: sub.paid_count || 1,
+          remaining_count: sub.remaining_count || (sub.total_count - (sub.paid_count || 1)),
+          next_charge_at: sub.next_charge_at ? new Date(sub.next_charge_at * 1000).toISOString().split('T')[0] : null,
+          created_at: new Date(sub.created_at * 1000).toISOString().split('T')[0],
+          short_url: sub.short_url,
+          auth_attempts: sub.auth_attempts || 0
+        });
+      }
 
-      console.log('Formatted active subscriptions:', formattedSubscriptions);
+      console.log('Formatted all subscriptions:', formattedSubscriptions);
 
       res.json({
         success: true,
