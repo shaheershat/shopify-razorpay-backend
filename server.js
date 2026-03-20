@@ -210,6 +210,16 @@ app.post('/api/customer-subscriptions-by-notes', async (req, res) => {
       });
     }
 
+    // Normalize phone number for comparison
+    const normalizePhone = (phone) => {
+      if (!phone) return '';
+      // Remove all non-digit characters
+      return phone.replace(/\D/g, '');
+    };
+
+    const normalizedCustomerPhone = normalizePhone(customer_phone);
+    console.log('Normalized customer phone:', normalizedCustomerPhone);
+
     // Fetch all subscriptions from Razorpay
     try {
       const subscriptions = await razorpay.subscriptions.all();
@@ -219,17 +229,22 @@ app.post('/api/customer-subscriptions-by-notes', async (req, res) => {
         // Check if subscription has notes
         if (!sub.notes) return false;
         
-        // Check email match in notes
+        // Check email match in notes (exact match)
         const emailMatch = customer_email && 
           (sub.notes.customer_email === customer_email || 
            sub.notes.email === customer_email);
         
-        // Check phone match in notes
-        const phoneMatch = customer_phone && 
-          (sub.notes.customer_phone === customer_phone || 
-           sub.notes.phone === customer_phone ||
-           sub.notes.customer_phone === customer_phone.replace('+', '') || // Remove + prefix
-           sub.notes.phone === customer_phone.replace('+', ''));
+        // Check phone match in notes (normalize both for comparison)
+        const notesPhone = normalizePhone(sub.notes.customer_phone) || normalizePhone(sub.notes.phone);
+        const phoneMatch = normalizedCustomerPhone && notesPhone && notesPhone === normalizedCustomerPhone;
+        
+        console.log(`Checking subscription ${sub.id}:`, {
+          emailMatch,
+          phoneMatch,
+          notesEmail: sub.notes.customer_email,
+          notesPhone: sub.notes.customer_phone,
+          normalizedNotesPhone: notesPhone
+        });
         
         return emailMatch || phoneMatch;
       });
