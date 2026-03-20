@@ -28,6 +28,10 @@ class SubscriptionManagement {
         customerId: this.customerId
       });
       
+      // TEMPORARY: Hardcode your Razorpay customer ID for testing
+      const hardcodedCustomerId = 'cust_SSlaBQYeOfoOj3';
+      console.log('🔧 Using hardcoded Razorpay customer ID:', hardcodedCustomerId);
+      
       // Try customer email first, then try to find by customer ID
       let customerEmail = this.customerEmail;
       
@@ -71,7 +75,8 @@ class SubscriptionManagement {
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-          customer_email: customerEmail
+          customer_email: customerEmail,
+          customer_id: hardcodedCustomerId // Add hardcoded customer ID
         })
       });
       
@@ -97,7 +102,8 @@ class SubscriptionManagement {
                   'Content-Type': 'application/json'
                 },
                 body: JSON.stringify({
-                  customer_phone: customerPhone
+                  customer_phone: customerPhone,
+                  customer_id: hardcodedCustomerId // Add hardcoded customer ID
                 })
               });
               
@@ -110,6 +116,32 @@ class SubscriptionManagement {
               }
             } catch (phoneError) {
               console.log('Phone lookup failed:', phoneError.message);
+            }
+          }
+          
+          // Also try direct Razorpay customer ID lookup
+          if (this.subscriptions.length === 0) {
+            console.log('Trying direct Razorpay customer ID lookup...');
+            try {
+              const customerIdResponse = await fetch(`${this.apiBase}/api/customer-subscriptions-by-customer-id`, {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                  customer_id: hardcodedCustomerId
+                })
+              });
+              
+              if (customerIdResponse.ok) {
+                const customerIdResult = await customerIdResponse.json();
+                if (customerIdResult.success && customerIdResult.subscriptions.length > 0) {
+                  this.subscriptions = customerIdResult.subscriptions;
+                  console.log('Found subscriptions by customer ID:', this.subscriptions.length);
+                }
+              }
+            } catch (customerIdError) {
+              console.log('Customer ID lookup failed:', customerIdError.message);
             }
           }
         }

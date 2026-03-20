@@ -237,6 +237,74 @@ app.post('/api/customer-details', async (req, res) => {
   }
 });
 
+// Get Customer Subscriptions by Razorpay Customer ID
+app.post('/api/customer-subscriptions-by-customer-id', async (req, res) => {
+  try {
+    const { customer_id } = req.body;
+    
+    console.log('Fetching subscriptions for Razorpay customer ID:', customer_id);
+    
+    if (!customer_id) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Customer ID is required' 
+      });
+    }
+
+    // Fetch all subscriptions from Razorpay
+    try {
+      const subscriptions = await razorpay.subscriptions.all();
+      
+      // Filter by customer ID
+      const customerSubscriptions = subscriptions.items.filter(sub => {
+        return sub.customer_id === customer_id;
+      });
+      
+      console.log('Found subscriptions by customer ID:', customerSubscriptions.length);
+
+      // Format subscription data
+      const formattedSubscriptions = customerSubscriptions.map(sub => ({
+        id: sub.id,
+        plan_name: sub.plan_id,
+        status: sub.status,
+        current_period_start: new Date(sub.start_at * 1000).toISOString().split('T')[0],
+        current_period_end: new Date(sub.end_at * 1000).toISOString().split('T')[0],
+        amount: sub.plan_item.amount,
+        customer_email: sub.email,
+        customer_phone: sub.phone,
+        customer_id: sub.customer_id,
+        product_id: sub.notes?.product_id || 'product1',
+        total_count: sub.total_count,
+        paid_count: sub.paid_count || 1,
+        remaining_count: sub.remaining_count || (sub.total_count - (sub.paid_count || 1)),
+        next_charge_at: sub.next_charge_at ? new Date(sub.next_charge_at * 1000).toISOString().split('T')[0] : null
+      }));
+
+      console.log('Formatted subscriptions by customer ID:', formattedSubscriptions);
+
+      res.json({
+        success: true,
+        subscriptions: formattedSubscriptions
+      });
+      
+    } catch (razorpayError) {
+      console.error('Razorpay API error:', razorpayError);
+      // If customer has no subscriptions, return empty array
+      res.json({
+        success: true,
+        subscriptions: []
+      });
+    }
+
+  } catch (error) {
+    console.error('Error fetching subscriptions by customer ID:', error);
+    res.status(400).json({ 
+      success: false, 
+      error: error.message 
+    });
+  }
+});
+
 // Get Customer Subscriptions by Phone
 app.post('/api/customer-subscriptions-by-phone', async (req, res) => {
   try {
@@ -308,28 +376,50 @@ app.post('/api/customer-subscriptions-by-phone', async (req, res) => {
 // Get Customer Subscriptions
 app.post('/api/customer-subscriptions', async (req, res) => {
   try {
-    const { customer_email } = req.body;
+    const { customer_email, customer_id } = req.body;
     
-    console.log('Fetching subscriptions for customer:', customer_email);
+    console.log('Fetching subscriptions for customer:', { customer_email, customer_id });
     
-    if (!customer_email) {
-      console.log('No customer email provided');
+    if (!customer_email && !customer_id) {
+      console.log('No customer email or ID provided');
       return res.status(400).json({ 
         success: false, 
-        error: 'Customer email is required' 
+        error: 'Customer email or ID is required' 
       });
     }
 
     // Fetch all subscriptions from Razorpay
     try {
-      const subscriptions = await razorpay.subscriptions.all({
-        email: customer_email
-      });
+      const subscriptions = await razorpay.subscriptions.all();
       
-      console.log('Razorpay response:', subscriptions);
+      // Filter subscriptions by email or customer ID
+      let customerSubscriptions = [];
+      
+      if (customer_id) {
+        // Primary filter by customer ID
+        customerSubscriptions = subscriptions.items.filter(sub => {
+          return sub.customer_id === customer_id;
+        });
+        console.log('Found subscriptions by customer ID:', customerSubscriptions.length);
+      } else {
+        // Fallback to email filter
+        customerSubscriptions = subscriptions.items.filter(sub => {
+          return sub.email === customer_email;
+        });
+        console.log('Found subscriptions by email:', customerSubscriptions.length);
+      }
+      
+      // If no subscriptions found by ID, try email as fallback
+      if (customerSubscriptions.length === 0 && customer_id && customer_email) {
+        console.log('No subscriptions by ID, trying email fallback...');
+        customerSubscriptions = subscriptions.items.filter(sub => {
+          return sub.email === customer_email;
+        });
+        console.log('Found subscriptions by email fallback:', customerSubscriptions.length);
+      }
 
       // Format subscription data
-      const formattedSubscriptions = subscriptions.items.map(sub => ({
+      const formattedSubscriptions = customerSubscriptions.map(sub => ({
         id: sub.id,
         plan_name: sub.plan_id,
         status: sub.status,
@@ -337,6 +427,8 @@ app.post('/api/customer-subscriptions', async (req, res) => {
         current_period_end: new Date(sub.end_at * 1000).toISOString().split('T')[0],
         amount: sub.plan_item.amount,
         customer_email: sub.email,
+        customer_phone: sub.phone,
+        customer_id: sub.customer_id,
         product_id: sub.notes?.product_id || 'product1',
         total_count: sub.total_count,
         paid_count: sub.paid_count || 1,
