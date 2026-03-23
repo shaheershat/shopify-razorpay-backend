@@ -915,6 +915,87 @@ app.post('/api/subscriptions/cancel', async (req, res) => {
   }
 });
 
+// Test Webhook Trigger with Custom Data (for testing)
+app.post('/api/test-custom-order', async (req, res) => {
+  try {
+    console.log('🧪 Testing custom order creation...');
+    
+    const { customer_data, product_data, plan_data } = req.body;
+    
+    // Create a mock subscription object with custom data
+    const mockSubscription = {
+      id: 'test_sub_' + Date.now(),
+      plan_id: plan_data?.plan_id || 'plan_SSfug4F5nvQEi5',
+      status: 'authenticated',
+      notes: {
+        // Product info
+        product_id: product_data?.product_id || '46513506189501',
+        product_title: product_data?.title || 'Test Subscription',
+        product_description: product_data?.description || 'Test subscription plan',
+        shopify_store: process.env.SHOPIFY_STORE_NAME,
+        // Customer info
+        customer_email: customer_data?.email || 'test@example.com',
+        customer_phone: customer_data?.phone || '+919876543210',
+        customer_name: customer_data?.name || `${customer_data?.first_name} ${customer_data?.last_name}`,
+        first_name: customer_data?.first_name || 'Test',
+        last_name: customer_data?.last_name || 'User',
+        // Address info
+        address: customer_data?.address?.address1 || '123 Test Street',
+        address_line_2: customer_data?.address?.address2 || '',
+        city: customer_data?.address?.city || 'Test City',
+        state: customer_data?.address?.state || 'Test State',
+        postal_code: customer_data?.address?.postal_code || '123456',
+        country: customer_data?.address?.country || 'IN',
+        // Subscription info
+        frequency: '3',
+        subscription_type: 'mandate',
+        flow: 'autopay'
+      },
+      charge_at: plan_data?.amount || 1000
+    };
+    
+    console.log('📋 Mock subscription created:', {
+      subscriptionId: mockSubscription.id,
+      customerName: mockSubscription.notes.customer_name,
+      email: mockSubscription.notes.customer_email,
+      phone: mockSubscription.notes.customer_phone,
+      address: `${mockSubscription.notes.address}, ${mockSubscription.notes.city}`,
+      planAmount: mockSubscription.charge_at
+    });
+    
+    // Call the order creation function
+    const order = await createShopifyOrder(mockSubscription);
+    
+    res.json({
+      success: true,
+      message: 'Test order created successfully',
+      subscription_id: mockSubscription.id,
+      order_id: order.id,
+      order_number: order.order_number,
+      customer_details: {
+        name: mockSubscription.notes.customer_name,
+        email: mockSubscription.notes.customer_email,
+        phone: mockSubscription.notes.customer_phone,
+        address: `${mockSubscription.notes.address}, ${mockSubscription.notes.city}, ${mockSubscription.notes.state} ${mockSubscription.notes.postal_code}`
+      },
+      order_details: {
+        total_amount: (mockSubscription.charge_at / 100).toFixed(2),
+        product_title: mockSubscription.notes.product_title,
+        variant_id: mockSubscription.notes.product_id
+      },
+      shopify_admin_url: `https://${process.env.SHOPIFY_STORE_NAME}/admin/orders/${order.id}`
+    });
+    
+  } catch (error) {
+    console.error('❌ Test order creation failed:', error);
+    res.status(400).json({
+      success: false,
+      error: error.message,
+      details: error.response?.data || 'No additional details'
+    });
+  }
+});
+
 // Test Webhook Trigger (for testing)
 app.post('/api/test-subscription-activated', async (req, res) => {
   try {
