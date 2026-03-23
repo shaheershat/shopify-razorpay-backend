@@ -340,18 +340,23 @@ class SubscriptionProduct {
         plan_price: this.selectedPlan.price,
         variant_id: this.selectedPlan.variantId,
         subscription_id: subscriptionId,
-        // Customer information for Shopify order creation
-        customer_email: this.customerEmail || document.getElementById('customerEmail')?.value,
-        customer_phone: this.customerPhone || document.getElementById('customerPhone')?.value,
-        customer_name: `${document.getElementById('firstName')?.value} ${document.getElementById('lastName')?.value}`,
-        first_name: document.getElementById('firstName')?.value,
-        last_name: document.getElementById('lastName')?.value,
-        address: document.getElementById('addressLine1')?.value,
-        address_line_2: document.getElementById('addressLine2')?.value || '',
-        city: document.getElementById('city')?.value,
-        state: document.getElementById('state')?.value,
-        postal_code: document.getElementById('postalCode')?.value,
-        country: 'IN',
+        // Combine customer info to reduce note count
+        customer_info: JSON.stringify({
+          email: this.customerEmail || document.getElementById('customerEmail')?.value,
+          phone: this.customerPhone || document.getElementById('customerPhone')?.value,
+          name: `${document.getElementById('firstName')?.value} ${document.getElementById('lastName')?.value}`,
+          first_name: document.getElementById('firstName')?.value,
+          last_name: document.getElementById('lastName')?.value
+        }),
+        // Combine address info to reduce note count
+        shipping_address: JSON.stringify({
+          address1: document.getElementById('addressLine1')?.value,
+          address2: document.getElementById('addressLine2')?.value || '',
+          city: document.getElementById('city')?.value,
+          state: document.getElementById('state')?.value,
+          postal_code: document.getElementById('postalCode')?.value,
+          country: 'IN'
+        }),
         timestamp: Date.now()
       },
       theme: {

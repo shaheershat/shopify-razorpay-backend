@@ -883,6 +883,88 @@ app.post('/api/subscriptions/cancel', async (req, res) => {
   }
 });
 
+// Test Shopify Connection
+app.post('/api/test-shopify-connection', async (req, res) => {
+  try {
+    console.log('🔍 Testing Shopify connection...');
+    
+    if (!process.env.SHOPIFY_STORE_NAME || !process.env.SHOPIFY_ACCESS_TOKEN) {
+      return res.status(400).json({
+        success: false,
+        error: 'Shopify credentials not configured'
+      });
+    }
+
+    const shopifyUrl = `https://${process.env.SHOPIFY_STORE_NAME}/admin/api/2023-10/shop.json`;
+    
+    const response = await axios.get(shopifyUrl, {
+      headers: {
+        'X-Shopify-Access-Token': process.env.SHOPIFY_ACCESS_TOKEN,
+        'Content-Type': 'application/json'
+      }
+    });
+
+    console.log('✅ Shopify connection successful:', response.data.shop.name);
+    
+    res.json({
+      success: true,
+      message: 'Shopify connection successful',
+      shop: {
+        name: response.data.shop.name,
+        domain: response.data.shop.domain,
+        id: response.data.shop.id
+      }
+    });
+
+  } catch (error) {
+    console.error('❌ Shopify connection failed:', error.response?.data || error.message);
+    res.status(400).json({
+      success: false,
+      error: error.response?.data || error.message
+    });
+  }
+});
+
+// Test Razorpay Connection
+app.post('/api/test-razorpay-connection', async (req, res) => {
+  try {
+    console.log('🔍 Testing Razorpay connection...');
+    
+    if (!process.env.RAZORPAY_KEY_ID || !process.env.RAZORPAY_SECRET_KEY) {
+      return res.status(400).json({
+        success: false,
+        error: 'Razorpay credentials not configured'
+      });
+    }
+
+    // Test by fetching plans
+    const plans = await razorpay.plans.all({
+      count: 1,
+      skip: 0
+    });
+
+    console.log('✅ Razorpay connection successful, found plans:', plans.items.length);
+    
+    res.json({
+      success: true,
+      message: 'Razorpay connection successful',
+      plans_found: plans.items.length,
+      test_plan: plans.items[0] ? {
+        id: plans.items[0].id,
+        name: plans.items[0].item?.name,
+        amount: plans.items[0].item?.amount
+      } : null
+    });
+
+  } catch (error) {
+    console.error('❌ Razorpay connection failed:', error);
+    res.status(400).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
 // Razorpay Webhook Handler
 app.post('/webhooks/razorpay', express.raw({type: 'application/json'}), async (req, res) => {
   try {
@@ -959,21 +1041,39 @@ async function createShopifyOrder(subscriptionData) {
     
     console.log('Creating Shopify order with data:', subscriptionData);
     
-    // Get customer info from subscription data
-    const customerEmail = subscriptionData.email || subscriptionData.notes?.customer_email;
-    const customerPhone = subscriptionData.phone || subscriptionData.notes?.customer_phone;
-    const variantId = subscriptionData.notes?.product_id || subscriptionData.product_id;
+    // Parse JSON strings from notes if they exist
+    let customerInfo = {};
+    let shippingAddress = {};
     
-    // Extract address information from notes or use defaults
-    const customerName = subscriptionData.notes?.customer_name || 'Customer Name';
-    const firstName = subscriptionData.notes?.first_name || 'Customer';
-    const lastName = subscriptionData.notes?.last_name || 'Name';
-    const address = subscriptionData.notes?.address || 'Default Address';
-    const addressLine2 = subscriptionData.notes?.address_line_2 || '';
-    const city = subscriptionData.notes?.city || 'Default City';
-    const state = subscriptionData.notes?.state || 'Default State';
-    const postalCode = subscriptionData.notes?.postal_code || '000000';
-    const country = subscriptionData.notes?.country || 'IN';
+    try {
+      customerInfo = subscriptionData.notes?.customer_info ? 
+        JSON.parse(subscriptionData.notes.customer_info) : {};
+    } catch (e) {
+      console.log('Could not parse customer_info from notes');
+    }
+    
+    try {
+      shippingAddress = subscriptionData.notes?.shipping_address ? 
+        JSON.parse(subscriptionData.notes.shipping_address) : {};
+    } catch (e) {
+      console.log('Could not parse shipping_address from notes');
+    }
+    
+    // Get customer info from parsed data or fallback to notes
+    const customerEmail = customerInfo.email || subscriptionData.email || subscriptionData.notes?.customer_email;
+    const customerPhone = customerInfo.phone || subscriptionData.phone || subscriptionData.notes?.customer_phone;
+    const variantId = subscriptionData.notes?.variant_id || subscriptionData.product_id;
+    
+    // Extract address information from parsed data or use defaults
+    const customerName = customerInfo.name || subscriptionData.notes?.customer_name || 'Customer Name';
+    const firstName = customerInfo.first_name || subscriptionData.notes?.first_name || 'Customer';
+    const lastName = customerInfo.last_name || subscriptionData.notes?.last_name || 'Name';
+    const address = shippingAddress.address1 || subscriptionData.notes?.address || 'Default Address';
+    const addressLine2 = shippingAddress.address2 || subscriptionData.notes?.address_line_2 || '';
+    const city = shippingAddress.city || subscriptionData.notes?.city || 'Default City';
+    const state = shippingAddress.state || subscriptionData.notes?.state || 'Default State';
+    const postalCode = shippingAddress.postal_code || subscriptionData.notes?.postal_code || '000000';
+    const country = shippingAddress.country || subscriptionData.notes?.country || 'IN';
     
     // Get plan details from Razorpay to get correct amount
     let planAmount = 0;
