@@ -120,15 +120,39 @@ app.post('/api/create-subscription-direct', async (req, res) => {
     // Create Razorpay subscription directly (no initial payment - mandate flow)
     console.log('🔄 Creating subscription via direct HTTP call...');
     
-    // First try without any notes to see if it works
+    // Combine all address data into a single field to stay within 15 notes limit
+    const addressData = {
+      customer_name: customer_name,
+      first_name: first_name,
+      last_name: last_name,
+      address: address,
+      address_line_2: address_line_2 || '',
+      city: city,
+      state: state,
+      postal_code: postal_code,
+      country: country || 'IN',
+      phone: customer_phone,
+      email: customer_email,
+      product_id: product_id,
+      product_title: product_title,
+      frequency: frequency
+    };
+    
     const subscriptionData = {
       plan_id: plan_id,
       customer_notify: 1,
       quantity: 1,
       total_count: parseInt(frequency),
       start_at: Math.floor(Date.now() / 1000) + 60, // Start in 1 minute
-      expire_by: Math.floor(Date.now() / 1000) + (parseInt(frequency) * 30 * 24 * 60 * 60) // Expire after frequency months
+      expire_by: Math.floor(Date.now() / 1000) + (parseInt(frequency) * 30 * 24 * 60 * 60), // Expire after frequency months
+      notes: {
+        subscription_data: JSON.stringify(addressData),
+        subscription_type: 'mandate'
+      }
     };
+    
+    console.log('📝 Notes count:', Object.keys(subscriptionData.notes).length);
+    console.log('📝 Notes fields:', Object.keys(subscriptionData.notes));
     
     // Make direct HTTP call to Razorpay
     const razorpayResponse = await axios.post(`https://${process.env.RAZORPAY_KEY_ID}:${process.env.RAZORPAY_SECRET_KEY}@api.razorpay.com/v1/subscriptions`, subscriptionData, {
@@ -1231,6 +1255,8 @@ app.post('/webhooks/razorpay', express.raw({type: 'application/json'}), async (r
 // Shopify Order Creation Function
 async function createShopifyOrder(subscriptionData) {
   try {
+    const shopifyUrl = `https://${process.env.SHOPIFY_STORE_NAME}/admin/api/2023-10/orders.json`;
+    
     console.log('🚀 Starting Shopify order creation process...');
     console.log('📋 Subscription data received:', {
       subscriptionId: subscriptionData.id,
@@ -1240,29 +1266,36 @@ async function createShopifyOrder(subscriptionData) {
       notesCount: Object.keys(subscriptionData.notes || {}).length
     });
     
-    const shopifyUrl = `https://${process.env.SHOPIFY_STORE_NAME}/admin/api/2023-10/orders.json`;
+    // Parse subscription data from notes (new combined format)
+    let subscriptionInfo = {};
+    try {
+      subscriptionInfo = subscriptionData.notes?.subscription_data ? 
+        JSON.parse(subscriptionData.notes.subscription_data) : {};
+    } catch (e) {
+      console.log('Could not parse subscription_data from notes, using fallback');
+    }
     
-    // Get customer info from subscription notes (new structure)
-    const customerEmail = subscriptionData.notes?.customer_email || subscriptionData.email;
-    const customerPhone = subscriptionData.notes?.customer_phone || subscriptionData.phone;
-    const variantId = subscriptionData.notes?.product_id || subscriptionData.product_id;
+    // Get customer info from parsed data or fallback to notes
+    const customerEmail = subscriptionInfo.email || subscriptionData.notes?.customer_email || subscriptionData.email;
+    const customerPhone = subscriptionInfo.phone || subscriptionData.notes?.customer_phone || subscriptionData.phone;
+    const variantId = subscriptionInfo.product_id || subscriptionData.notes?.product_id || subscriptionData.product_id;
+    
+    // Extract address information from parsed data
+    const customerName = subscriptionInfo.customer_name || 'Customer Name';
+    const firstName = subscriptionInfo.first_name || 'Customer';
+    const lastName = subscriptionInfo.last_name || 'Name';
+    const address = subscriptionInfo.address || 'Default Address';
+    const addressLine2 = subscriptionInfo.address_line_2 || '';
+    const city = subscriptionInfo.city || 'Default City';
+    const state = subscriptionInfo.state || 'Default State';
+    const postalCode = subscriptionInfo.postal_code || '000000';
+    const country = subscriptionInfo.country || 'IN';
     
     console.log('👤 Customer info extracted:', {
       email: customerEmail,
       phone: customerPhone,
       variantId: variantId
     });
-    
-    // Extract address information from notes (new structure)
-    const customerName = subscriptionData.notes?.customer_name || 'Customer Name';
-    const firstName = subscriptionData.notes?.first_name || 'Customer';
-    const lastName = subscriptionData.notes?.last_name || 'Name';
-    const address = subscriptionData.notes?.address || 'Default Address';
-    const addressLine2 = subscriptionData.notes?.address_line_2 || '';
-    const city = subscriptionData.notes?.city || 'Default City';
-    const state = subscriptionData.notes?.state || 'Default State';
-    const postalCode = subscriptionData.notes?.postal_code || '000000';
-    const country = subscriptionData.notes?.country || 'IN';
     
     console.log('🏠 Address information extracted:', {
       customerName,
@@ -1303,7 +1336,7 @@ async function createShopifyOrder(subscriptionData) {
           {
             variant_id: getVariantId(variantId),
             quantity: 1,
-            title: `${subscriptionData.notes?.product_title || 'Subscription'} - ${subscriptionData.plan_id}`,
+            title: `${subscriptionInfo.product_title || 'Subscription'} - ${subscriptionData.plan_id}`,
             price: (planAmount / 100).toString(), // Convert from paise to rupees
             taxable: true
           }
