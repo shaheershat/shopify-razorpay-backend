@@ -1090,12 +1090,31 @@ app.post('/webhooks/razorpay', express.raw({type: 'application/json'}), async (r
         break;
 
       case 'subscription.activated':
-        console.log('Subscription activated:', event.payload.subscription.entity.id);
+        console.log('🎉 WEBHOOK RECEIVED: Subscription activated!');
+        console.log('📋 Subscription details:', {
+          subscriptionId: event.payload.subscription.entity.id,
+          status: event.payload.subscription.entity.status,
+          planId: event.payload.subscription.entity.plan_id,
+          hasNotes: !!event.payload.subscription.entity.notes,
+          notesCount: Object.keys(event.payload.subscription.entity.notes || {}).length
+        });
+        
         // Create order in Shopify for activated subscription
         try {
-          await createShopifyOrder(event.payload.subscription.entity);
+          console.log('🚀 Triggering Shopify order creation from webhook...');
+          const order = await createShopifyOrder(event.payload.subscription.entity);
+          console.log('✅ WEBHOOK SUCCESS: Shopify order created via webhook!', {
+            subscriptionId: event.payload.subscription.entity.id,
+            orderId: order.id,
+            orderNumber: order.order_number
+          });
         } catch (orderError) {
-          console.error('Failed to create Shopify order for activated subscription:', orderError);
+          console.error('❌ WEBHOOK FAILED: Shopify order creation failed from webhook:', orderError);
+          console.error('🔥 Webhook error details:', {
+            subscriptionId: event.payload.subscription.entity.id,
+            errorMessage: orderError.message,
+            errorResponse: orderError.response?.data
+          });
         }
         break;
 
@@ -1119,14 +1138,27 @@ app.post('/webhooks/razorpay', express.raw({type: 'application/json'}), async (r
 // Shopify Order Creation Function
 async function createShopifyOrder(subscriptionData) {
   try {
-    const shopifyUrl = `https://${process.env.SHOPIFY_STORE_NAME}/admin/api/2023-10/orders.json`;
+    console.log('🚀 Starting Shopify order creation process...');
+    console.log('📋 Subscription data received:', {
+      subscriptionId: subscriptionData.id,
+      planId: subscriptionData.plan_id,
+      status: subscriptionData.status,
+      hasNotes: !!subscriptionData.notes,
+      notesCount: Object.keys(subscriptionData.notes || {}).length
+    });
     
-    console.log('Creating Shopify order with data:', subscriptionData);
+    const shopifyUrl = `https://${process.env.SHOPIFY_STORE_NAME}/admin/api/2023-10/orders.json`;
     
     // Get customer info from subscription notes (new structure)
     const customerEmail = subscriptionData.notes?.customer_email || subscriptionData.email;
     const customerPhone = subscriptionData.notes?.customer_phone || subscriptionData.phone;
     const variantId = subscriptionData.notes?.product_id || subscriptionData.product_id;
+    
+    console.log('👤 Customer info extracted:', {
+      email: customerEmail,
+      phone: customerPhone,
+      variantId: variantId
+    });
     
     // Extract address information from notes (new structure)
     const customerName = subscriptionData.notes?.customer_name || 'Customer Name';
@@ -1139,12 +1171,10 @@ async function createShopifyOrder(subscriptionData) {
     const postalCode = subscriptionData.notes?.postal_code || '000000';
     const country = subscriptionData.notes?.country || 'IN';
     
-    console.log('📋 Extracted customer data from subscription notes:', {
+    console.log('🏠 Address information extracted:', {
       customerName,
       firstName,
       lastName,
-      email: customerEmail,
-      phone: customerPhone,
       address,
       city,
       state,
@@ -1155,14 +1185,22 @@ async function createShopifyOrder(subscriptionData) {
     // Get plan details from Razorpay to get correct amount
     let planAmount = 0;
     try {
+      console.log('💰 Fetching plan details for:', subscriptionData.plan_id);
       const plan = await razorpay.plans.fetch(subscriptionData.plan_id);
       planAmount = plan.item.amount; // Amount in paise
-      console.log('✅ Plan amount fetched:', planAmount);
+      console.log('✅ Plan amount fetched successfully:', {
+        planId: plan.id,
+        planName: plan.item.name,
+        amount: planAmount,
+        amountInRupees: (planAmount / 100).toFixed(2)
+      });
     } catch (planError) {
-      console.log('Could not fetch plan details, using fallback amount');
+      console.log('⚠️ Could not fetch plan details, using fallback amount');
       planAmount = subscriptionData.charge_at || 1000; // Fallback to 10 rupees
+      console.log('🔄 Using fallback amount:', planAmount);
     }
     
+    // Build Shopify order data
     const orderData = {
       order: {
         email: customerEmail,
@@ -1208,19 +1246,17 @@ async function createShopifyOrder(subscriptionData) {
       }
     };
 
-    console.log('🛒 Creating Shopify order with complete data:', {
+    console.log('🛒 Shopify order data prepared:', {
+      customerEmail,
       customerName,
-      email: customerEmail,
-      phone: customerPhone,
       variantId,
-      address,
-      city,
-      state,
-      postalCode,
-      country,
-      planAmount: (planAmount / 100).toString()
+      totalAmount: (planAmount / 100).toString(),
+      shippingAddress: `${address}, ${city}, ${state} ${postalCode}`,
+      lineItemsCount: orderData.order.line_items.length
     });
 
+    console.log('📤 Sending request to Shopify API...');
+    
     const response = await axios.post(shopifyUrl, orderData, {
       headers: {
         'X-Shopify-Access-Token': process.env.SHOPIFY_ACCESS_TOKEN,
@@ -1228,19 +1264,37 @@ async function createShopifyOrder(subscriptionData) {
       }
     });
 
-    console.log('✅ Shopify order created successfully:', response.data.order.id);
+    console.log('✅ SUCCESS: Shopify order created successfully!');
     console.log('📦 Order details:', {
       orderId: response.data.order.id,
+      orderNumber: response.data.order.order_number,
       customerEmail,
       customerName,
       totalAmount: (planAmount / 100).toString(),
-      address: `${address}, ${city}, ${state} ${postalCode}`
+      address: `${address}, ${city}, ${state} ${postalCode}`,
+      financialStatus: response.data.order.financial_status,
+      fulfillmentStatus: response.data.order.fulfillment_status
     });
+    
+    console.log('🔗 Shopify Order Link:', `https://${process.env.SHOPIFY_STORE_NAME}/admin/orders/${response.data.order.id}`);
     
     return response.data.order;
 
   } catch (error) {
-    console.error('❌ Error creating Shopify order:', error.response?.data || error.message);
+    console.error('❌ FAILED: Shopify order creation failed!');
+    console.error('🔥 Error details:', {
+      message: error.message,
+      status: error.response?.status,
+      statusText: error.response?.statusText,
+      shopifyError: error.response?.data,
+      subscriptionId: subscriptionData.id,
+      customerEmail: subscriptionData.notes?.customer_email
+    });
+    
+    if (error.response?.data) {
+      console.error('📋 Shopify API Error Response:', JSON.stringify(error.response.data, null, 2));
+    }
+    
     throw error;
   }
 }
