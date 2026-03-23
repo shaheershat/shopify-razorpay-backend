@@ -292,6 +292,30 @@ console.log('🔥 API URL from settings: {{ settings.subscription_api_url | defa
     transform: translateY(0);
   }
 
+  .btn-continue {
+    background-color: #FF4FA3 !important;
+    color: white !important;
+    font-size: 16px;
+    border-radius: 10px;
+    font-weight: 600;
+    transition: all 0.3s ease;
+    border: none;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    padding: 12px 24px !important;
+    cursor: pointer;
+  }
+
+  .btn-continue:hover {
+    background-color: black !important;
+    color: white;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  }
+
+  .btn-continue:active {
+    transform: translateY(0);
+  }
+
   /* Transition */
   .transition-colors {
     transition-property: color, background-color, border-color;
@@ -454,6 +478,68 @@ console.log('🔥 API URL from settings: {{ settings.subscription_api_url | defa
     padding-top: 0.75rem;
     padding-bottom: 0.75rem;
   }
+
+  /* Modal Styles */
+  .modal-overlay {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(0, 0, 0, 0.5);
+    z-index: 999;
+    justify-content: center;
+    align-items: center;
+  }
+
+  .modal-overlay.active {
+    display: flex;
+  }
+
+  .modal-content {
+    background-color: white;
+    border-radius: 12px;
+    padding: 2rem;
+    max-width: 500px;
+    width: 90%;
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+    animation: slideUp 0.3s ease;
+  }
+
+  @keyframes slideUp {
+    from {
+      transform: translateY(20px);
+      opacity: 0;
+    }
+    to {
+      transform: translateY(0);
+      opacity: 1;
+    }
+  }
+
+  .modal-header {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--heading-color);
+    margin-bottom: 1.5rem;
+  }
+
+  .modal-close {
+    position: absolute;
+    top: 1rem;
+    right: 1rem;
+    background: none;
+    border: none;
+    font-size: 1.5rem;
+    cursor: pointer;
+    color: #6b7280;
+    transition: color 0.3s ease;
+  }
+
+  .modal-close:hover {
+    color: #111827;
+  }
 </style>
 
 <div class="container mx-auto px-4 py-8">
@@ -518,10 +604,10 @@ console.log('🔥 API URL from settings: {{ settings.subscription_api_url | defa
           </div>
           {%- endif -%}
 
-          <!-- BUTTONS -->
+          <!-- CONTINUE BUTTON -->
           <div class="flex gap-3 mb-6">
-            <button id="subscribeNowBtn" class="flex-1 py-3 rounded-lg font-semibold btn-subscribe">
-              Subscribe with Auto-pay
+            <button id="continueBtn" class="flex-1 py-3 rounded-lg font-semibold btn-continue">
+              Continue
             </button>
           </div>
 
@@ -537,6 +623,53 @@ console.log('🔥 API URL from settings: {{ settings.subscription_api_url | defa
   </div>
 </div>
 
+<!-- MODAL -->
+<div class="modal-overlay" id="subscriptionModal">
+  <div class="modal-content">
+    <button class="modal-close" onclick="closeModal()">&times;</button>
+    <h2 class="modal-header">Complete Your Subscription</h2>
+    
+    <!-- CUSTOMER INFO -->
+    <div class="mb-6">
+      <h3 class="section-heading">Customer Information</h3>
+      <div class="space-y-3">
+        {%- if customer -%}
+          <input type="email" id="customerEmail" value="{{ customer.email }}" class="w-full border rounded-lg px-4 py-2 input-field" readonly>
+          <input type="tel" id="customerPhone" value="{{ customer.phone }}" class="w-full border rounded-lg px-4 py-2 input-field">
+        {%- else -%}
+          <input type="email" id="customerEmail" placeholder="Email Address" class="w-full border rounded-lg px-4 py-2 input-field">
+          <input type="tel" id="customerPhone" placeholder="Phone Number" class="w-full border rounded-lg px-4 py-2 input-field">
+        {%- endif -%}
+      </div>
+    </div>
+
+    <!-- SHIPPING ADDRESS -->
+    <div class="mb-6">
+      <h3 class="section-heading">Shipping Address</h3>
+      <div class="space-y-3">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <input type="text" id="firstName" placeholder="First Name" class="w-full border rounded-lg px-4 py-2 input-field">
+          <input type="text" id="lastName" placeholder="Last Name" class="w-full border rounded-lg px-4 py-2 input-field">
+        </div>
+        <input type="text" id="addressLine1" placeholder="Address Line 1" class="w-full border rounded-lg px-4 py-2 input-field">
+        <input type="text" id="addressLine2" placeholder="Address Line 2 (Optional)" class="w-full border rounded-lg px-4 py-2 input-field">
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+          <input type="text" id="city" placeholder="City" class="w-full border rounded-lg px-4 py-2 input-field">
+          <input type="text" id="state" placeholder="State" class="w-full border rounded-lg px-4 py-2 input-field">
+          <input type="text" id="postalCode" placeholder="PIN Code" class="w-full border rounded-lg px-4 py-2 input-field">
+        </div>
+      </div>
+    </div>
+
+    <!-- BUTTONS -->
+    <div class="flex gap-3">
+      <button id="subscribeNowBtn" class="flex-1 py-3 rounded-lg font-semibold btn-subscribe">
+        Subscribe with Auto-pay
+      </button>
+    </div>
+  </div>
+</div>
+
 <!-- Hidden configuration -->
 <script>
   window.subscriptionConfig = {
@@ -546,6 +679,40 @@ console.log('🔥 API URL from settings: {{ settings.subscription_api_url | defa
     customerEmail: {%- if customer -%}'{{ customer.email }}'{%- else -%}null{%- endif -%},
     customerPhone: {%- if customer -%}'{{ customer.phone }}'{%- else -%}null{%- endif -%}
   };
+
+  // Plan selection handler
+  document.querySelectorAll('.subscription-option').forEach(option => {
+    option.addEventListener('click', function() {
+      document.querySelectorAll('.subscription-option').forEach(opt => opt.classList.remove('selected'));
+      this.classList.add('selected');
+    });
+  });
+
+  // Continue button handler
+  document.getElementById('continueBtn').addEventListener('click', function() {
+    const selectedPlan = document.querySelector('.subscription-option.selected');
+    if (!selectedPlan) {
+      alert('Please select a subscription plan');
+      return;
+    }
+    openModal();
+  });
+
+  // Modal functions
+  function openModal() {
+    document.getElementById('subscriptionModal').classList.add('active');
+  }
+
+  function closeModal() {
+    document.getElementById('subscriptionModal').classList.remove('active');
+  }
+
+  // Close modal when clicking outside
+  document.getElementById('subscriptionModal').addEventListener('click', function(e) {
+    if (e.target === this) {
+      closeModal();
+    }
+  });
 </script>
 
 {% schema %}

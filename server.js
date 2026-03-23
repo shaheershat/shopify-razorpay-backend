@@ -964,6 +964,17 @@ async function createShopifyOrder(subscriptionData) {
     const customerPhone = subscriptionData.phone || subscriptionData.notes?.customer_phone;
     const variantId = subscriptionData.notes?.product_id || subscriptionData.product_id;
     
+    // Extract address information from notes or use defaults
+    const customerName = subscriptionData.notes?.customer_name || 'Customer Name';
+    const firstName = subscriptionData.notes?.first_name || 'Customer';
+    const lastName = subscriptionData.notes?.last_name || 'Name';
+    const address = subscriptionData.notes?.address || 'Default Address';
+    const addressLine2 = subscriptionData.notes?.address_line_2 || '';
+    const city = subscriptionData.notes?.city || 'Default City';
+    const state = subscriptionData.notes?.state || 'Default State';
+    const postalCode = subscriptionData.notes?.postal_code || '000000';
+    const country = subscriptionData.notes?.country || 'IN';
+    
     // Get plan details from Razorpay to get correct amount
     let planAmount = 0;
     try {
@@ -982,45 +993,52 @@ async function createShopifyOrder(subscriptionData) {
         financial_status: 'paid',
         line_items: [
           {
-            variant_id: variantId,
+            variant_id: getVariantId(variantId),
             quantity: 1,
-            title: `Subscription - ${subscriptionData.plan_id}`,
+            title: `${subscriptionData.plan_id} - Subscription`,
             price: (planAmount / 100).toString(), // Convert from paise to rupees
             taxable: true
           }
         ],
-        note: `Subscription ID: ${subscriptionData.id} | Plan: ${subscriptionData.plan_id} | Customer: ${customerEmail} | Phone: ${customerPhone}`,
-        tags: ['subscription', 'razorpay', 'active', 'autopay'],
-        customer: {
-          email: customerEmail,
-          phone: customerPhone,
-          first_name: customerEmail?.split('@')[0] || 'Customer',
-          last_name: 'User'
-        },
+        note: `Subscription ID: ${subscriptionData.id} | Plan: ${subscriptionData.plan_id}`,
+        tags: ['subscription', 'razorpay', 'active'],
         shipping_address: {
-          first_name: customerEmail?.split('@')[0] || 'Customer',
-          last_name: 'User',
-          address1: subscriptionData.notes?.address || 'Default Address',
-          city: subscriptionData.notes?.city || 'Default City',
-          province: subscriptionData.notes?.state || 'Default State',
-          country: 'IN',
-          zip: subscriptionData.notes?.postal_code || '000000',
-          phone: customerPhone
+          first_name: firstName,
+          last_name: lastName,
+          address1: address,
+          address2: addressLine2,
+          city: city,
+          province: state,
+          country: country,
+          zip: postalCode
         },
         billing_address: {
-          first_name: customerEmail?.split('@')[0] || 'Customer',
-          last_name: 'User',
-          address1: subscriptionData.notes?.address || 'Default Address',
-          city: subscriptionData.notes?.city || 'Default City',
-          province: subscriptionData.notes?.state || 'Default State',
-          country: 'IN',
-          zip: subscriptionData.notes?.postal_code || '000000',
+          first_name: firstName,
+          last_name: lastName,
+          address1: address,
+          address2: addressLine2,
+          city: city,
+          province: state,
+          country: country,
+          zip: postalCode
+        },
+        customer: {
+          first_name: firstName,
+          last_name: lastName,
+          email: customerEmail,
           phone: customerPhone
         }
       }
     };
 
-    console.log('Shopify order data:', JSON.stringify(orderData, null, 2));
+    console.log('🛒 Creating Shopify order with address data:', {
+      customerName,
+      address,
+      city,
+      state,
+      postalCode,
+      country
+    });
 
     const response = await axios.post(shopifyUrl, orderData, {
       headers: {

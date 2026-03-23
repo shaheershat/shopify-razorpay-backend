@@ -123,19 +123,64 @@ class SubscriptionProduct {
       console.error('🔥 Subscribe button not found!');
     }
     
-    // Update button states (no input fields to monitor)
-    this.updateButtonStates();
+    // Enable buttons when customer info is filled
+    const emailInput = document.getElementById('customerEmail');
+    const phoneInput = document.getElementById('customerPhone');
+    const firstNameInput = document.getElementById('firstName');
+    const lastNameInput = document.getElementById('lastName');
+    const addressLine1Input = document.getElementById('addressLine1');
+    const cityInput = document.getElementById('city');
+    const stateInput = document.getElementById('state');
+    const postalCodeInput = document.getElementById('postalCode');
+    
+    console.log('🔥 Email input found:', emailInput);
+    console.log('🔥 Phone input found:', phoneInput);
+    
+    if (emailInput) emailInput.addEventListener('input', () => this.updateButtonStates());
+    if (phoneInput) phoneInput.addEventListener('input', () => this.updateButtonStates());
+    if (firstNameInput) firstNameInput.addEventListener('input', () => this.updateButtonStates());
+    if (lastNameInput) lastNameInput.addEventListener('input', () => this.updateButtonStates());
+    if (addressLine1Input) addressLine1Input.addEventListener('input', () => this.updateButtonStates());
+    if (cityInput) cityInput.addEventListener('input', () => this.updateButtonStates());
+    if (stateInput) stateInput.addEventListener('input', () => this.updateButtonStates());
+    if (postalCodeInput) postalCodeInput.addEventListener('input', () => this.updateButtonStates());
     
     console.log('🔥 Buttons initialized!');
   }
   
   updateButtonStates() {
-    // Only require plan selection (customer info is auto-filled from logged-in user)
-    const hasValidInfo = this.selectedPlan;
+    const email = document.getElementById('customerEmail').value;
+    const phone = document.getElementById('customerPhone').value;
+    const firstName = document.getElementById('firstName').value;
+    const lastName = document.getElementById('lastName').value;
+    const addressLine1 = document.getElementById('addressLine1').value;
+    const city = document.getElementById('city').value;
+    const state = document.getElementById('state').value;
+    const postalCode = document.getElementById('postalCode').value;
+    
+    // Require all fields for subscription
+    const hasValidInfo = email && phone && firstName && lastName && addressLine1 && city && state && postalCode && this.selectedPlan;
     
     const subscribeNowBtn = document.getElementById('subscribeNowBtn');
     
-    if (subscribeNowBtn) subscribeNowBtn.disabled = !hasValidInfo;
+    if (subscribeNowBtn) {
+      subscribeNowBtn.disabled = !hasValidInfo;
+      subscribeNowBtn.style.opacity = hasValidInfo ? '1' : '0.5';
+      subscribeNowBtn.style.cursor = hasValidInfo ? 'pointer' : 'not-allowed';
+    }
+    
+    console.log('🔍 Button state update:', {
+      email: !!email,
+      phone: !!phone,
+      firstName: !!firstName,
+      lastName: !!lastName,
+      addressLine1: !!addressLine1,
+      city: !!city,
+      state: !!state,
+      postalCode: !!postalCode,
+      selectedPlan: !!this.selectedPlan,
+      hasValidInfo
+    });
   }
   
   async createSubscription() {
@@ -145,12 +190,18 @@ class SubscriptionProduct {
         return;
       }
 
-      // Use logged-in customer info automatically (no input fields needed)
-      const customerEmail = this.customerEmail || '{{ customer.email }}';
-      const customerPhone = this.customerPhone || '{{ customer.phone }}';
+      const customerEmail = this.customerEmail || document.getElementById('customerEmail')?.value;
+      const customerPhone = this.customerPhone || document.getElementById('customerPhone')?.value;
+      const firstName = document.getElementById('firstName')?.value;
+      const lastName = document.getElementById('lastName')?.value;
+      const addressLine1 = document.getElementById('addressLine1')?.value;
+      const addressLine2 = document.getElementById('addressLine2')?.value || '';
+      const city = document.getElementById('city')?.value;
+      const state = document.getElementById('state')?.value;
+      const postalCode = document.getElementById('postalCode')?.value;
 
-      if (!customerEmail) {
-        this.showNotification('Please log in to subscribe', 'error');
+      if (!customerEmail || !customerPhone || !firstName || !lastName || !addressLine1 || !city || !state || !postalCode) {
+        this.showNotification('Please fill in all required fields', 'error');
         return;
       }
 
@@ -158,22 +209,64 @@ class SubscriptionProduct {
         planId: this.selectedPlan.planId,
         customerEmail,
         customerPhone,
+        firstName,
+        lastName,
+        addressLine1,
+        city,
+        state,
+        postalCode,
         amount: this.selectedPlan.price // Use price from selected plan (in rupees)
       });
 
       // Show loading
-      this.showNotification('Opening payment authorization...', 'info');
+      this.showNotification('Creating subscription...', 'info');
       
-      // Step 1: Directly open Razorpay checkout with plan details (NO subscription creation yet)
-      // Create subscription only AFTER payment authorization
-      this.openRazorpaySubscriptionCheckout(this.selectedPlan.planId, this.selectedPlan.price, {
-        customerEmail,
-        customerPhone,
-        variantId: this.selectedPlan.variantId,
-        frequency: this.selectedPlan.frequency,
-        productTitle: this.selectedPlan.name,
-        productDescription: this.selectedPlan.description
+      // Step 1: Create Razorpay subscription first (mandate flow)
+      const response = await fetch(`${this.apiBase}/api/create-subscription-direct`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          plan_id: this.selectedPlan.planId,
+          customer_email: customerEmail,
+          customer_phone: customerPhone,
+          product_id: this.selectedPlan.variantId,
+          frequency: this.selectedPlan.frequency,
+          product_title: this.selectedPlan.name,
+          product_description: this.selectedPlan.description,
+          amount: this.selectedPlan.price,
+          // Add address data to notes for Shopify order creation
+          customer_name: `${firstName} ${lastName}`,
+          first_name: firstName,
+          last_name: lastName,
+          address: addressLine1,
+          address_line_2: addressLine2,
+          city: city,
+          state: state,
+          postal_code: postalCode,
+          country: 'IN' // Default country
+        })
       });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('❌ API error response:', errorText);
+        throw new Error(`API Error: ${response.status} - ${errorText}`);
+      }
+
+      const result = await response.json();
+      console.log('📊 API response data:', result);
+
+      if (result.success) {
+        console.log('✅ Subscription created, opening Razorpay subscription checkout...');
+        console.log('💰 Plan amount from backend:', result.amount);
+        // Step 2: Open Razorpay checkout to AUTHENTICATE subscription (mandate flow)
+        this.openRazorpaySubscriptionCheckout(result.subscription_id, result.key_id, result.amount);
+      } else {
+        console.error('❌ API error:', result.error);
+        this.showNotification(`Failed to create subscription: ${result.error}`, 'error');
+      }
 
     } catch (error) {
       console.error('❌ Subscription creation error:', error);
@@ -193,10 +286,9 @@ class SubscriptionProduct {
     this.openRazorpaySubscriptionCheckout(subscriptionId, keyId, amount);
   }
   
-  openRazorpaySubscriptionCheckout(planId, amount, customerData) {
+  openRazorpaySubscriptionCheckout(subscriptionId, keyId, amount) {
     console.log('🚀 Opening Razorpay subscription checkout (mandate flow)...');
     console.log('💰 Using amount from plan:', amount);
-    console.log('👤 Customer data:', customerData);
     
     // Check if Razorpay is available
     if (typeof Razorpay === 'undefined') {
@@ -205,20 +297,20 @@ class SubscriptionProduct {
       return;
     }
     
-    // PURE SUBSCRIPTION MANDATE CHECKOUT - bypasses Magic Checkout completely
+    // PURE SUBSCRIPTION CHECKOUT - bypasses Magic Checkout completely
     const options = {
-      key: 'rzp_live_SSfTeiwakEqpU0', // Force use new key
-      subscription_id: planId, // Use subscription_id for mandate flow
+      key: keyId, // Use key from backend
+      subscription_id: subscriptionId, // Use subscription_id, not order_id
       name: 'Luvwish Subscription',
-      description: `${customerData.productTitle} - ${customerData.productDescription}`,
+      description: `${this.selectedPlan.name} - ${this.selectedPlan.description}`,
       image: 'https://luvwish.in/cdn/shop/files/Logo_1_250x250.png',
-      amount: amount * 100, // Convert rupees to paise
-      handler: async (response) => {
-        console.log('✅ Subscription mandate completed:', response);
+      amount: amount, // Use actual plan amount from backend (already in paise)
+      handler: (response) => {
+        console.log('✅ Subscription payment completed:', response);
         
-        // For subscription mandate flow, we get razorpay_subscription_id and razorpay_payment_id
+        // For subscription flow, we get razorpay_subscription_id and razorpay_payment_id
         if (response.razorpay_subscription_id && response.razorpay_payment_id) {
-          console.log('🎉 Subscription mandate authorized successfully!');
+          console.log('🎉 Subscription activated successfully!');
           this.showNotification('Subscription activated successfully!', 'success');
           
           // Redirect to subscription management page after 2 seconds
@@ -244,12 +336,22 @@ class SubscriptionProduct {
       notes: {
         subscription_type: 'mandate',
         flow: 'autopay',
-        plan_name: customerData.productTitle,
-        plan_price: amount,
-        variant_id: customerData.variantId,
-        plan_id: planId,
-        customer_email: customerData.customerEmail,
-        customer_phone: customerData.customerPhone,
+        plan_name: this.selectedPlan.name,
+        plan_price: this.selectedPlan.price,
+        variant_id: this.selectedPlan.variantId,
+        subscription_id: subscriptionId,
+        // Customer information for Shopify order creation
+        customer_email: this.customerEmail || document.getElementById('customerEmail')?.value,
+        customer_phone: this.customerPhone || document.getElementById('customerPhone')?.value,
+        customer_name: `${document.getElementById('firstName')?.value} ${document.getElementById('lastName')?.value}`,
+        first_name: document.getElementById('firstName')?.value,
+        last_name: document.getElementById('lastName')?.value,
+        address: document.getElementById('addressLine1')?.value,
+        address_line_2: document.getElementById('addressLine2')?.value || '',
+        city: document.getElementById('city')?.value,
+        state: document.getElementById('state')?.value,
+        postal_code: document.getElementById('postalCode')?.value,
+        country: 'IN',
         timestamp: Date.now()
       },
       theme: {
@@ -257,8 +359,8 @@ class SubscriptionProduct {
         backdrop_color: '#ffffff'
       },
       prefill: {
-        email: customerData.customerEmail || '',
-        contact: customerData.customerPhone || ''
+        email: this.customerEmail || '',
+        contact: this.customerPhone || ''
       },
       readonly: {
         email: false,
@@ -266,26 +368,26 @@ class SubscriptionProduct {
       }
     };
 
-    console.log('🔧 Razorpay SUBSCRIPTION MANDATE options:', options);
-    console.log('🔍 Using subscription_id:', planId);
-    console.log('💰 Amount:', amount * 100, '(paise)');
-    console.log('🚀 Opening SUBSCRIPTION MANDATE modal - NO Magic Checkout!');
+    console.log('🔧 Razorpay SUBSCRIPTION options:', options);
+    console.log('🔍 Using subscription_id:', subscriptionId);
+    console.log('💰 Amount:', amount);
+    console.log('🚀 Opening SUBSCRIPTION checkout (mandate flow) - NO Magic Checkout!');
     
     try {
-      // Use the existing Razorpay instance directly (no need to reload)
+      // Create new Razorpay instance for SUBSCRIPTION
       const rzp = new Razorpay(options);
-      console.log('✅ Razorpay subscription mandate instance created successfully');
-      console.log('🚀 Opening SUBSCRIPTION MANDATE modal...');
+      console.log('✅ Razorpay subscription instance created successfully');
+      console.log('🚀 Opening Razorpay SUBSCRIPTION modal...');
       
-      // Open subscription mandate modal (this will show autopay setup)
+      // Open subscription modal (this will show mandate flow)
       rzp.open();
       
       // Check if modal opened
       setTimeout(() => {
         const modal = document.querySelector('.razorpay-container');
         if (modal) {
-          console.log('✅ Razorpay subscription mandate modal opened successfully');
-          console.log('🎯 This is PURE MANDATE flow - autopay setup only');
+          console.log('✅ Razorpay subscription modal opened successfully');
+          console.log('🎯 This is MANDATE flow - no immediate payment');
         } else {
           console.warn('⚠️ Razorpay modal not found, trying to open again...');
           // Try once more
@@ -294,7 +396,7 @@ class SubscriptionProduct {
       }, 500);
       
     } catch (error) {
-      console.error('❌ Error opening Razorpay subscription mandate:', error);
+      console.error('❌ Error opening Razorpay subscription:', error);
       this.showNotification(`Failed to open subscription: ${error.message}`, 'error');
     }
   }
