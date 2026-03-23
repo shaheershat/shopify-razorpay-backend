@@ -120,24 +120,7 @@ app.post('/api/create-subscription-direct', async (req, res) => {
     // Create Razorpay subscription directly (no initial payment - mandate flow)
     console.log('🔄 Creating subscription via direct HTTP call...');
     
-    // Combine all address data into a single field to stay within 15 notes limit
-    const addressData = {
-      customer_name: customer_name,
-      first_name: first_name,
-      last_name: last_name,
-      address: address,
-      address_line_2: address_line_2 || '',
-      city: city,
-      state: state,
-      postal_code: postal_code,
-      country: country || 'IN',
-      phone: customer_phone,
-      email: customer_email,
-      product_id: product_id,
-      product_title: product_title,
-      frequency: frequency
-    };
-    
+    // Split data into multiple notes to stay under 255 character limit
     const subscriptionData = {
       plan_id: plan_id,
       customer_notify: 1,
@@ -146,8 +129,20 @@ app.post('/api/create-subscription-direct', async (req, res) => {
       start_at: Math.floor(Date.now() / 1000) + 60, // Start in 1 minute
       expire_by: Math.floor(Date.now() / 1000) + (parseInt(frequency) * 30 * 24 * 60 * 60), // Expire after frequency months
       notes: {
-        subscription_data: JSON.stringify(addressData),
-        subscription_type: 'mandate'
+        // Customer info (shortened)
+        name: customer_name.substring(0, 50),
+        email: customer_email.substring(0, 50),
+        phone: customer_phone.substring(0, 20),
+        // Address info (shortened)
+        addr: address.substring(0, 50),
+        city: city.substring(0, 30),
+        state: state.substring(0, 30),
+        pin: postal_code.substring(0, 10),
+        // Product info
+        pid: product_id.substring(0, 20),
+        title: product_title.substring(0, 50),
+        freq: frequency.substring(0, 10),
+        type: 'mandate'
       }
     };
     
@@ -1266,30 +1261,41 @@ async function createShopifyOrder(subscriptionData) {
       notesCount: Object.keys(subscriptionData.notes || {}).length
     });
     
-    // Parse subscription data from notes (new combined format)
+    // Parse subscription data from notes (new shortened format)
     let subscriptionInfo = {};
     try {
-      subscriptionInfo = subscriptionData.notes?.subscription_data ? 
-        JSON.parse(subscriptionData.notes.subscription_data) : {};
+      // Extract from shortened notes
+      subscriptionInfo = {
+        customer_name: subscriptionData.notes?.name || 'Customer Name',
+        email: subscriptionData.notes?.email || subscriptionData.email,
+        phone: subscriptionData.notes?.phone || subscriptionData.phone,
+        address: subscriptionData.notes?.addr || 'Default Address',
+        city: subscriptionData.notes?.city || 'Default City',
+        state: subscriptionData.notes?.state || 'Default State',
+        postal_code: subscriptionData.notes?.pin || '000000',
+        product_id: subscriptionData.notes?.pid || subscriptionData.product_id,
+        product_title: subscriptionData.notes?.title || 'Subscription',
+        frequency: subscriptionData.notes?.freq || '1'
+      };
     } catch (e) {
-      console.log('Could not parse subscription_data from notes, using fallback');
+      console.log('Could not parse subscription data from notes, using fallback');
     }
     
     // Get customer info from parsed data or fallback to notes
-    const customerEmail = subscriptionInfo.email || subscriptionData.notes?.customer_email || subscriptionData.email;
-    const customerPhone = subscriptionInfo.phone || subscriptionData.notes?.customer_phone || subscriptionData.phone;
-    const variantId = subscriptionInfo.product_id || subscriptionData.notes?.product_id || subscriptionData.product_id;
+    const customerEmail = subscriptionInfo.email || subscriptionData.email;
+    const customerPhone = subscriptionInfo.phone || subscriptionData.phone;
+    const variantId = subscriptionInfo.product_id || subscriptionData.product_id;
     
     // Extract address information from parsed data
     const customerName = subscriptionInfo.customer_name || 'Customer Name';
-    const firstName = subscriptionInfo.first_name || 'Customer';
-    const lastName = subscriptionInfo.last_name || 'Name';
+    const firstName = customerName.split(' ')[0] || 'Customer';
+    const lastName = customerName.split(' ').slice(1).join(' ') || 'Name';
     const address = subscriptionInfo.address || 'Default Address';
-    const addressLine2 = subscriptionInfo.address_line_2 || '';
+    const addressLine2 = ''; // Not stored in shortened notes
     const city = subscriptionInfo.city || 'Default City';
     const state = subscriptionInfo.state || 'Default State';
     const postalCode = subscriptionInfo.postal_code || '000000';
-    const country = subscriptionInfo.country || 'IN';
+    const country = 'IN'; // Default country
     
     console.log('👤 Customer info extracted:', {
       email: customerEmail,
