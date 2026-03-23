@@ -105,39 +105,39 @@ app.post('/api/create-subscription-direct', async (req, res) => {
     const plan = await razorpay.plans.fetch(plan_id);
     console.log('Fetched plan details:', plan);
 
+    console.log('📝 Creating subscription with notes count:', Object.keys({
+        product_id: product_id,
+        customer_email: customer_email,
+        customer_name: customer_name,
+        address: address,
+        city: city,
+        state: state,
+        postal_code: postal_code,
+        country: country || 'IN',
+        frequency: frequency
+      }).length);
+
     // Create Razorpay subscription directly (no initial payment - mandate flow)
-    const subscription = await razorpay.subscriptions.create({
+    console.log('🔄 Creating subscription via direct HTTP call...');
+    
+    // First try without any notes to see if it works
+    const subscriptionData = {
       plan_id: plan_id,
       customer_notify: 1,
       quantity: 1,
       total_count: parseInt(frequency),
       start_at: Math.floor(Date.now() / 1000) + 60, // Start in 1 minute
-      expire_by: Math.floor(Date.now() / 1000) + (parseInt(frequency) * 30 * 24 * 60 * 60), // Expire after frequency months
-      notes: {
-        // Product info
-        product_id: product_id,
-        product_title: product_title,
-        product_description: product_description,
-        shopify_store: process.env.SHOPIFY_STORE_NAME,
-        // Customer info
-        customer_email: customer_email,
-        customer_phone: customer_phone,
-        customer_name: customer_name,
-        first_name: first_name,
-        last_name: last_name,
-        // Address info
-        address: address,
-        address_line_2: address_line_2 || '',
-        city: city,
-        state: state,
-        postal_code: postal_code,
-        country: country || 'IN',
-        // Subscription info
-        frequency: frequency,
-        subscription_type: 'mandate',
-        flow: 'autopay'
+      expire_by: Math.floor(Date.now() / 1000) + (parseInt(frequency) * 30 * 24 * 60 * 60) // Expire after frequency months
+    };
+    
+    // Make direct HTTP call to Razorpay
+    const razorpayResponse = await axios.post(`https://${process.env.RAZORPAY_KEY_ID}:${process.env.RAZORPAY_SECRET_KEY}@api.razorpay.com/v1/subscriptions`, subscriptionData, {
+      headers: {
+        'Content-Type': 'application/json'
       }
     });
+    
+    const subscription = razorpayResponse.data;
 
     console.log('Direct subscription created:', subscription.id);
     console.log('✅ Address data stored in subscription notes:', {
@@ -159,10 +159,22 @@ app.post('/api/create-subscription-direct', async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Error creating direct subscription:', error);
+    console.error('❌ Error creating direct subscription:', error);
+    console.error('🔥 Error details:', {
+      message: error.message,
+      stack: error.stack,
+      razorpayError: error.error,
+      statusCode: error.statusCode,
+      description: error.description
+    });
     res.status(400).json({ 
       success: false, 
-      error: error.message 
+      error: error.message || 'Unknown error occurred',
+      details: {
+        statusCode: error.statusCode,
+        description: error.description,
+        razorpayError: error.error
+      }
     });
   }
 });
