@@ -79,7 +79,17 @@ app.post('/api/create-subscription-direct', async (req, res) => {
       frequency,
       product_title,
       product_description,
-      amount // This will be in rupees from frontend
+      amount, // This will be in rupees from frontend
+      // Address fields
+      customer_name,
+      first_name,
+      last_name,
+      address,
+      address_line_2,
+      city,
+      state,
+      postal_code,
+      country
     } = req.body;
 
     console.log('Creating direct subscription (mandate flow):', req.body);
@@ -104,17 +114,39 @@ app.post('/api/create-subscription-direct', async (req, res) => {
       start_at: Math.floor(Date.now() / 1000) + 60, // Start in 1 minute
       expire_by: Math.floor(Date.now() / 1000) + (parseInt(frequency) * 30 * 24 * 60 * 60), // Expire after frequency months
       notes: {
+        // Product info
         product_id: product_id,
         product_title: product_title,
         product_description: product_description,
         shopify_store: process.env.SHOPIFY_STORE_NAME,
-        customer_email: customer_email, // Store in notes instead
-        customer_phone: customer_phone, // Store in notes instead
-        frequency: frequency
+        // Customer info
+        customer_email: customer_email,
+        customer_phone: customer_phone,
+        customer_name: customer_name,
+        first_name: first_name,
+        last_name: last_name,
+        // Address info
+        address: address,
+        address_line_2: address_line_2 || '',
+        city: city,
+        state: state,
+        postal_code: postal_code,
+        country: country || 'IN',
+        // Subscription info
+        frequency: frequency,
+        subscription_type: 'mandate',
+        flow: 'autopay'
       }
     });
 
     console.log('Direct subscription created:', subscription.id);
+    console.log('✅ Address data stored in subscription notes:', {
+      customer_name,
+      address,
+      city,
+      state,
+      postal_code
+    });
 
     // Return subscription info with correct amount from plan (convert to paise for frontend)
     res.json({
@@ -883,6 +915,56 @@ app.post('/api/subscriptions/cancel', async (req, res) => {
   }
 });
 
+// Test Webhook Trigger (for testing)
+app.post('/api/test-subscription-activated', async (req, res) => {
+  try {
+    console.log('🧪 Testing subscription activation webhook...');
+    
+    // Get the latest subscription from Razorpay
+    const subscriptions = await razorpay.subscriptions.all({
+      count: 1,
+      status: 'active'
+    });
+    
+    if (subscriptions.items.length === 0) {
+      return res.status(400).json({
+        success: false,
+        error: 'No active subscriptions found'
+      });
+    }
+    
+    const subscription = subscriptions.items[0];
+    console.log('📋 Found active subscription:', subscription.id);
+    
+    // Simulate webhook payload
+    const webhookPayload = {
+      event: 'subscription.activated',
+      payload: {
+        subscription: {
+          entity: subscription
+        }
+      }
+    };
+    
+    // Call the order creation function
+    await createShopifyOrder(webhookPayload.payload.subscription.entity);
+    
+    res.json({
+      success: true,
+      message: 'Test webhook triggered successfully',
+      subscription_id: subscription.id,
+      order_created: true
+    });
+    
+  } catch (error) {
+    console.error('❌ Test webhook failed:', error);
+    res.status(400).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
 // Test Shopify Connection
 app.post('/api/test-shopify-connection', async (req, res) => {
   try {
@@ -1041,46 +1123,41 @@ async function createShopifyOrder(subscriptionData) {
     
     console.log('Creating Shopify order with data:', subscriptionData);
     
-    // Parse JSON strings from notes if they exist
-    let customerInfo = {};
-    let shippingAddress = {};
+    // Get customer info from subscription notes (new structure)
+    const customerEmail = subscriptionData.notes?.customer_email || subscriptionData.email;
+    const customerPhone = subscriptionData.notes?.customer_phone || subscriptionData.phone;
+    const variantId = subscriptionData.notes?.product_id || subscriptionData.product_id;
     
-    try {
-      customerInfo = subscriptionData.notes?.customer_info ? 
-        JSON.parse(subscriptionData.notes.customer_info) : {};
-    } catch (e) {
-      console.log('Could not parse customer_info from notes');
-    }
+    // Extract address information from notes (new structure)
+    const customerName = subscriptionData.notes?.customer_name || 'Customer Name';
+    const firstName = subscriptionData.notes?.first_name || 'Customer';
+    const lastName = subscriptionData.notes?.last_name || 'Name';
+    const address = subscriptionData.notes?.address || 'Default Address';
+    const addressLine2 = subscriptionData.notes?.address_line_2 || '';
+    const city = subscriptionData.notes?.city || 'Default City';
+    const state = subscriptionData.notes?.state || 'Default State';
+    const postalCode = subscriptionData.notes?.postal_code || '000000';
+    const country = subscriptionData.notes?.country || 'IN';
     
-    try {
-      shippingAddress = subscriptionData.notes?.shipping_address ? 
-        JSON.parse(subscriptionData.notes.shipping_address) : {};
-    } catch (e) {
-      console.log('Could not parse shipping_address from notes');
-    }
-    
-    // Get customer info from parsed data or fallback to notes
-    const customerEmail = customerInfo.email || subscriptionData.email || subscriptionData.notes?.customer_email;
-    const customerPhone = customerInfo.phone || subscriptionData.phone || subscriptionData.notes?.customer_phone;
-    const variantId = subscriptionData.notes?.variant_id || subscriptionData.product_id;
-    
-    // Extract address information from parsed data or use defaults
-    const customerName = customerInfo.name || subscriptionData.notes?.customer_name || 'Customer Name';
-    const firstName = customerInfo.first_name || subscriptionData.notes?.first_name || 'Customer';
-    const lastName = customerInfo.last_name || subscriptionData.notes?.last_name || 'Name';
-    const address = shippingAddress.address1 || subscriptionData.notes?.address || 'Default Address';
-    const addressLine2 = shippingAddress.address2 || subscriptionData.notes?.address_line_2 || '';
-    const city = shippingAddress.city || subscriptionData.notes?.city || 'Default City';
-    const state = shippingAddress.state || subscriptionData.notes?.state || 'Default State';
-    const postalCode = shippingAddress.postal_code || subscriptionData.notes?.postal_code || '000000';
-    const country = shippingAddress.country || subscriptionData.notes?.country || 'IN';
+    console.log('📋 Extracted customer data from subscription notes:', {
+      customerName,
+      firstName,
+      lastName,
+      email: customerEmail,
+      phone: customerPhone,
+      address,
+      city,
+      state,
+      postalCode,
+      country
+    });
     
     // Get plan details from Razorpay to get correct amount
     let planAmount = 0;
     try {
       const plan = await razorpay.plans.fetch(subscriptionData.plan_id);
       planAmount = plan.item.amount; // Amount in paise
-      console.log('Plan amount:', planAmount);
+      console.log('✅ Plan amount fetched:', planAmount);
     } catch (planError) {
       console.log('Could not fetch plan details, using fallback amount');
       planAmount = subscriptionData.charge_at || 1000; // Fallback to 10 rupees
@@ -1095,13 +1172,13 @@ async function createShopifyOrder(subscriptionData) {
           {
             variant_id: getVariantId(variantId),
             quantity: 1,
-            title: `${subscriptionData.plan_id} - Subscription`,
+            title: `${subscriptionData.notes?.product_title || 'Subscription'} - ${subscriptionData.plan_id}`,
             price: (planAmount / 100).toString(), // Convert from paise to rupees
             taxable: true
           }
         ],
-        note: `Subscription ID: ${subscriptionData.id} | Plan: ${subscriptionData.plan_id}`,
-        tags: ['subscription', 'razorpay', 'active'],
+        note: `Subscription ID: ${subscriptionData.id} | Plan: ${subscriptionData.plan_id} | Customer: ${customerName}`,
+        tags: ['subscription', 'razorpay', 'active', 'mandate-flow'],
         shipping_address: {
           first_name: firstName,
           last_name: lastName,
@@ -1131,13 +1208,17 @@ async function createShopifyOrder(subscriptionData) {
       }
     };
 
-    console.log('🛒 Creating Shopify order with address data:', {
+    console.log('🛒 Creating Shopify order with complete data:', {
       customerName,
+      email: customerEmail,
+      phone: customerPhone,
+      variantId,
       address,
       city,
       state,
       postalCode,
-      country
+      country,
+      planAmount: (planAmount / 100).toString()
     });
 
     const response = await axios.post(shopifyUrl, orderData, {
@@ -1147,7 +1228,15 @@ async function createShopifyOrder(subscriptionData) {
       }
     });
 
-    console.log('✅ Shopify order created:', response.data.order.id);
+    console.log('✅ Shopify order created successfully:', response.data.order.id);
+    console.log('📦 Order details:', {
+      orderId: response.data.order.id,
+      customerEmail,
+      customerName,
+      totalAmount: (planAmount / 100).toString(),
+      address: `${address}, ${city}, ${state} ${postalCode}`
+    });
+    
     return response.data.order;
 
   } catch (error) {

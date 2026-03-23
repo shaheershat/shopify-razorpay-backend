@@ -236,7 +236,7 @@ class SubscriptionProduct {
           product_title: this.selectedPlan.name,
           product_description: this.selectedPlan.description,
           amount: this.selectedPlan.price,
-          // Add address data to notes for Shopify order creation
+          // Send address data directly to backend (not in Razorpay notes)
           customer_name: `${firstName} ${lastName}`,
           first_name: firstName,
           last_name: lastName,
@@ -336,27 +336,9 @@ class SubscriptionProduct {
       notes: {
         subscription_type: 'mandate',
         flow: 'autopay',
-        plan_name: this.selectedPlan.name,
-        plan_price: this.selectedPlan.price,
-        variant_id: this.selectedPlan.variantId,
-        subscription_id: subscriptionId,
-        // Combine customer info to reduce note count
-        customer_info: JSON.stringify({
-          email: this.customerEmail || document.getElementById('customerEmail')?.value,
-          phone: this.customerPhone || document.getElementById('customerPhone')?.value,
-          name: `${document.getElementById('firstName')?.value} ${document.getElementById('lastName')?.value}`,
-          first_name: document.getElementById('firstName')?.value,
-          last_name: document.getElementById('lastName')?.value
-        }),
-        // Combine address info to reduce note count
-        shipping_address: JSON.stringify({
-          address1: document.getElementById('addressLine1')?.value,
-          address2: document.getElementById('addressLine2')?.value || '',
-          city: document.getElementById('city')?.value,
-          state: document.getElementById('state')?.value,
-          postal_code: document.getElementById('postalCode')?.value,
-          country: 'IN'
-        }),
+        product_id: this.selectedPlan.variantId,
+        customer_email: this.customerEmail || document.getElementById('customerEmail')?.value,
+        customer_phone: this.customerPhone || document.getElementById('customerPhone')?.value,
         timestamp: Date.now()
       },
       theme: {
