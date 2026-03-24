@@ -221,57 +221,84 @@ class SubscriptionProduct {
       // Show loading
       this.showNotification('Creating subscription...', 'info');
       
-      // Step 1: Create Razorpay subscription first (mandate flow)
-      const response = await fetch(`${this.apiBase}/api/create-subscription-direct`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          plan_id: this.selectedPlan.planId,
-          customer_email: customerEmail,
-          customer_phone: customerPhone,
-          product_id: this.selectedPlan.variantId,
-          frequency: this.selectedPlan.frequency,
-          product_title: this.selectedPlan.name,
-          product_description: this.selectedPlan.description,
-          amount: this.selectedPlan.price,
-          // Send address data directly to backend (not in Razorpay notes)
-          customer_name: `${firstName} ${lastName}`,
-          first_name: firstName,
-          last_name: lastName,
-          address: addressLine1,
-          address_line_2: addressLine2,
-          city: city,
-          state: state,
-          postal_code: postalCode,
-          country: 'IN' // Default country
-        })
-      });
+      // Retry logic for network issues
+      let retryCount = 0;
+      const maxRetries = 2;
+      
+      const attemptSubscription = async () => {
+        try {
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+          
+          const response = await fetch(`${this.apiBase}/api/create-subscription-direct`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+              plan_id: this.selectedPlan.planId,
+              customer_email: customerEmail,
+              customer_phone: customerPhone,
+              product_id: this.selectedPlan.variantId,
+              frequency: this.selectedPlan.frequency,
+              product_title: this.selectedPlan.name,
+              product_description: this.selectedPlan.description,
+              amount: this.selectedPlan.price,
+              // Send address data directly to backend (not in Razorpay notes)
+              customer_name: `${firstName} ${lastName}`,
+              first_name: firstName,
+              last_name: lastName,
+              address: addressLine1,
+              address_line_2: addressLine2,
+              city: city,
+              state: state,
+              postal_code: postalCode,
+              country: 'IN' // Default country
+            }),
+            signal: controller.signal
+          });
+          
+          clearTimeout(timeoutId);
 
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error('❌ API error response:', errorText);
-        throw new Error(`API Error: ${response.status} - ${errorText}`);
-      }
+          if (!response.ok) {
+            const errorText = await response.text();
+            console.error('❌ API error response:', errorText);
+            throw new Error(`API Error: ${response.status} - ${errorText}`);
+          }
 
-      const result = await response.json();
-      console.log('📊 API response data:', result);
+          const result = await response.json();
+          console.log('📊 API response data:', result);
 
-      if (result.success) {
-        console.log('✅ Subscription created, opening Razorpay subscription checkout...');
-        console.log('💰 Plan amount from backend:', result.amount);
-        // Step 2: Open Razorpay checkout to AUTHENTICATE subscription (mandate flow)
-        this.openRazorpaySubscriptionCheckout(result.subscription_id, result.key_id, result.amount);
-      } else {
-        console.error('❌ API error:', result.error);
-        this.showNotification(`Failed to create subscription: ${result.error}`, 'error');
-      }
-
-    } catch (error) {
-      console.error('❌ Subscription creation error:', error);
-      this.showNotification(`Failed to start subscription: ${error.message}`, 'error');
-    }
+          if (result.success) {
+            console.log('✅ Subscription created, opening Razorpay subscription checkout...');
+            console.log('💰 Plan amount from backend:', result.amount);
+            // Step 2: Open Razorpay checkout to AUTHENTICATE subscription (mandate flow)
+            this.openRazorpaySubscriptionCheckout(result.subscription_id, result.key_id, result.amount);
+          } else {
+            console.error('❌ API error:', result.error);
+            this.showNotification(`Failed to create subscription: ${result.error}`, 'error');
+          }
+          
+        } catch (error) {
+          if (error.name === 'AbortError') {
+            console.error('❌ Request timeout:', error);
+            if (retryCount < maxRetries) {
+              retryCount++;
+              console.log(`🔄 Retrying subscription creation (${retryCount}/${maxRetries})...`);
+              this.showNotification(`Connection issue, retrying... (${retryCount}/${maxRetries})`, 'warning');
+              setTimeout(() => attemptSubscription(), 2000); // Wait 2 seconds before retry
+            } else {
+              this.showNotification('Request timed out. Please check your connection and try again.', 'error');
+            }
+          } else {
+            console.error('❌ Subscription creation error:', error);
+            this.showNotification(`Failed to start subscription: ${error.message}`, 'error');
+          }
+        }
+      };
+      
+      // Start the subscription creation attempt
+      await attemptSubscription();
   }
   
   openRazorpayCheckout(orderId, subscriptionId, keyId, amount) {
