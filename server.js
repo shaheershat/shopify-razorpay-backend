@@ -1342,7 +1342,19 @@ app.post('/webhooks/razorpay', express.raw({type: 'application/json'}), async (r
         break;
 
       case 'payment.failed':
-        console.log('Payment failed:', event.payload.payment.entity.id);
+        console.log('💳 Payment failed:', event.payload.payment.entity.id);
+        console.log('📋 Payment failure details:', JSON.stringify(event.payload.payment.entity, null, 2));
+        console.log('🔍 Payment error code:', event.payload.payment.entity.error_code);
+        console.log('🔍 Payment error description:', event.payload.payment.entity.error_description);
+        console.log('🔍 Payment status:', event.payload.payment.entity.status);
+        console.log('🔍 Payment method:', event.payload.payment.entity.method);
+        console.log('🔍 Payment amount:', event.payload.payment.entity.amount);
+        
+        // Log available fields for debugging
+        if (event.payload.payment.entity) {
+          console.log('📋 Available payment fields:', Object.keys(event.payload.payment.entity));
+        }
+        
         // Handle failed payment
         break;
 
