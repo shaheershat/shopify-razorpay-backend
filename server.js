@@ -1235,15 +1235,40 @@ app.post('/webhooks/razorpay', express.raw({type: 'application/json'}), async (r
   try {
     console.log('🔔 WEBHOOK RECEIVED - Checking signature...');
     const signature = req.headers['x-razorpay-signature'];
-    const body = req.body.toString();
+    
+    let body;
+    // Check if body is already parsed or raw
+    if (typeof req.body === 'string') {
+      body = req.body;
+    } else if (Buffer.isBuffer(req.body)) {
+      body = req.body.toString();
+    } else {
+      // Body is already parsed as object
+      body = JSON.stringify(req.body);
+    }
 
     console.log('📋 Webhook signature:', signature);
     console.log('📋 Webhook body length:', body.length);
+    console.log('📋 Webhook body type:', typeof req.body);
+
+    // Check if body is empty or invalid
+    if (!body || body.length === 0) {
+      console.error('❌ Empty webhook body received');
+      return res.status(400).json({ error: 'Empty webhook body' });
+    }
 
     // For now, skip signature verification to debug
     console.log('⚠️ Skipping signature verification for debugging...');
     
-    const event = JSON.parse(body);
+    let event;
+    try {
+      event = JSON.parse(body);
+    } catch (parseError) {
+      console.error('❌ JSON parse error:', parseError.message);
+      console.error('📋 Attempted to parse:', body);
+      return res.status(400).json({ error: 'Invalid JSON in webhook body' });
+    }
+    
     console.log('🔔 WEBHOOK EVENT:', event.event);
 
     switch (event.event) {
