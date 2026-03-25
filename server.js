@@ -1349,13 +1349,26 @@ app.post('/webhooks/razorpay', express.raw({type: 'application/json'}), async (r
         console.log('🔍 Payment status:', event.payload.payment.entity.status);
         console.log('🔍 Payment method:', event.payload.payment.entity.method);
         console.log('🔍 Payment amount:', event.payload.payment.entity.amount);
+        console.log('🔍 Payment VPA:', event.payload.payment.entity.vpa);
+        console.log('🔍 Error source:', event.payload.payment.entity.error_source);
+        console.log('🔍 Error step:', event.payload.payment.entity.error_step);
+        console.log('🔍 Error reason:', event.payload.payment.entity.error_reason);
         
         // Log available fields for debugging
         if (event.payload.payment.entity) {
           console.log('📋 Available payment fields:', Object.keys(event.payload.payment.entity));
         }
         
-        // Handle failed payment
+        // Create failed order record for tracking
+        try {
+          await createFailedPaymentOrder(event.payload.payment.entity);
+        } catch (orderError) {
+          console.error('Failed to create failed payment order record:', orderError);
+        }
+        
+        // Handle failed payment - notify customer
+        await handlePaymentFailure(event.payload.payment.entity);
+        
         break;
 
       default:
@@ -1371,6 +1384,116 @@ app.post('/webhooks/razorpay', express.raw({type: 'application/json'}), async (r
     res.status(400).json({ error: error.message });
   }
 });
+
+// Failed Payment Order Creation Function
+async function createFailedPaymentOrder(paymentData) {
+  try {
+    const shopifyUrl = `https://${process.env.SHOPIFY_STORE_NAME}/admin/api/2023-10/orders.json`;
+    
+    console.log('🚀 Creating failed payment order record...');
+    
+    // Extract customer info from payment notes
+    const customerEmail = paymentData.notes?.customer_email || paymentData.email;
+    const customerPhone = paymentData.notes?.customer_phone || paymentData.contact;
+    const customerName = paymentData.notes?.customer_name || 'Customer Name';
+    const firstName = customerName.split(' ')[0] || 'Customer';
+    const lastName = customerName.split(' ').slice(1).join(' ') || 'Name';
+    
+    // Get product info
+    const productId = paymentData.notes?.product_id || '46513506189501';
+    const variantId = getVariantId(productId);
+    
+    // Create a draft order for failed payment (for tracking)
+    const orderData = {
+      order: {
+        email: customerEmail,
+        phone: customerPhone,
+        financial_status: 'pending',
+        line_items: [
+          {
+            variant_id: variantId,
+            quantity: 1,
+            title: `FAILED PAYMENT - ${paymentData.error_description || 'Payment Failed'}`,
+            price: (paymentData.amount / 100).toString(),
+            taxable: true
+          }
+        ],
+        note: `FAILED PAYMENT - ID: ${paymentData.id} | Error: ${paymentData.error_code} | ${paymentData.error_description} | Method: ${paymentData.method} | VPA: ${paymentData.vpa || 'N/A'}`,
+        tags: ['subscription', 'razorpay', 'payment-failed', 'mandate-flow'],
+        send_receipt: false,
+        send_fulfillment_receipt: false,
+        send_invoice: false
+      }
+    };
+
+    const response = await axios.post(shopifyUrl, orderData, {
+      headers: {
+        'X-Shopify-Access-Token': process.env.SHOPIFY_ACCESS_TOKEN,
+        'Content-Type': 'application/json'
+      }
+    });
+
+    console.log('✅ Failed payment order created for tracking:', response.data.order.id);
+    return response.data.order;
+
+  } catch (error) {
+    console.error('❌ Failed to create failed payment order:', error.message);
+    throw error;
+  }
+}
+
+// Payment Failure Handler
+async function handlePaymentFailure(paymentData) {
+  try {
+    console.log('🔔 Handling payment failure...');
+    
+    // Extract customer info
+    const customerEmail = paymentData.notes?.customer_email || paymentData.email;
+    const customerName = paymentData.notes?.customer_name || 'Customer';
+    
+    // Determine failure type
+    let failureMessage = '';
+    let retrySuggestion = '';
+    
+    if (paymentData.error_code === 'BAD_REQUEST_ERROR') {
+      failureMessage = 'Payment was cancelled or UPI app timed out';
+      retrySuggestion = 'Please try again with a stable internet connection';
+    } else if (paymentData.error_code === 'GATEWAY_ERROR') {
+      failureMessage = 'Bank risk check failed for your account';
+      retrySuggestion = 'Please try using a different payment method or account';
+    } else if (paymentData.error_source === 'customer') {
+      failureMessage = 'Payment was cancelled by customer';
+      retrySuggestion = 'Please complete the payment process';
+    } else if (paymentData.error_source === 'issuer_bank') {
+      failureMessage = 'Bank rejected the payment';
+      retrySuggestion = 'Please contact your bank or use a different account';
+    } else {
+      failureMessage = 'Payment failed due to technical issues';
+      retrySuggestion = 'Please try again or contact support';
+    }
+    
+    console.log('📋 Payment failure analysis:', {
+      customerEmail,
+      customerName,
+      failureMessage,
+      retrySuggestion,
+      paymentMethod: paymentData.method,
+      errorCode: paymentData.error_code,
+      errorSource: paymentData.error_source
+    });
+    
+    // Here you could:
+    // 1. Send email notification to customer
+    // 2. Update subscription status in database
+    // 3. Trigger retry logic
+    // 4. Notify admin team
+    
+    console.log('🔔 Payment failure handled successfully');
+    
+  } catch (error) {
+    console.error('❌ Error handling payment failure:', error);
+  }
+}
 
 // Shopify Order Creation Function from Payment Data
 async function createShopifyOrderFromPayment(paymentData) {
