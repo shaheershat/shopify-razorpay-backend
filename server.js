@@ -1303,30 +1303,28 @@ app.post('/webhooks/razorpay', express.raw({type: 'application/json'}), async (r
 
       case 'payment.authorized':
         console.log('💳 Payment authorized:', event.payload.payment.entity.id);
-        console.log('📋 Payment entity details:', {
-          paymentId: event.payload.payment.entity.id,
-          hasSubscriptionId: !!event.payload.payment.entity.subscription_id,
-          subscriptionId: event.payload.payment.entity.subscription_id,
-          fullPaymentEntity: event.payload.payment.entity
-        });
+        console.log('📋 Payment entity details:', JSON.stringify(event.payload.payment.entity, null, 2));
         
         // Create order for payment - get subscription from payment entity
         try {
           if (event.payload.payment.entity && event.payload.payment.entity.subscription_id) {
-            console.log('✅ Found subscription_id, fetching subscription details...');
-            // Fetch the subscription details to get full data
+            // Fetch subscription details to get full data
+            console.log('🔗 Found subscription_id:', event.payload.payment.entity.subscription_id);
             const subscriptionResponse = await razorpay.subscriptions.fetch(event.payload.payment.entity.subscription_id);
+            await createShopifyOrder(subscriptionResponse);
+          } else if (event.payload.payment.entity && event.payload.payment.entity.notes && event.payload.payment.entity.notes.subscription_id) {
+            // Try to get subscription_id from notes
+            console.log('🔗 Found subscription_id in notes:', event.payload.payment.entity.notes.subscription_id);
+            const subscriptionResponse = await razorpay.subscriptions.fetch(event.payload.payment.entity.notes.subscription_id);
             await createShopifyOrder(subscriptionResponse);
           } else {
             console.error('❌ No subscription_id found in payment entity');
-            // Try to get subscription from other sources
-            if (event.payload.payment.entity.notes && event.payload.payment.entity.notes.subscription_id) {
-              console.log('🔄 Found subscription_id in notes, fetching...');
-              const subscriptionResponse = await razorpay.subscriptions.fetch(event.payload.payment.entity.notes.subscription_id);
-              await createShopifyOrder(subscriptionResponse);
-            } else {
-              console.error('❌ No subscription_id found anywhere in payment entity');
-            }
+            console.error('📋 Available payment fields:', Object.keys(event.payload.payment.entity || {}));
+            
+            // For mandate flow, the payment might not have subscription_id
+            // Let's try to create order with available payment data
+            console.log('🔄 Creating order from payment data directly...');
+            await createShopifyOrderFromPayment(event.payload.payment.entity);
           }
         } catch (orderError) {
           console.error('Failed to create Shopify order for payment:', orderError);
@@ -1361,6 +1359,195 @@ app.post('/webhooks/razorpay', express.raw({type: 'application/json'}), async (r
     res.status(400).json({ error: error.message });
   }
 });
+
+// Shopify Order Creation Function from Payment Data
+async function createShopifyOrderFromPayment(paymentData) {
+  try {
+    const shopifyUrl = `https://${process.env.SHOPIFY_STORE_NAME}/admin/api/2023-10/orders.json`;
+    
+    console.log('🚀 Starting Shopify order creation from payment data...');
+    console.log('📋 Payment data received:', {
+      paymentId: paymentData.id,
+      amount: paymentData.amount,
+      currency: paymentData.currency,
+      email: paymentData.email,
+      hasNotes: !!paymentData.notes,
+      notesCount: Object.keys(paymentData.notes || {}).length
+    });
+
+    // Extract customer and product info from payment notes
+    let subscriptionInfo = {};
+    try {
+      subscriptionInfo = {
+        customer_name: paymentData.notes?.name || 'Customer Name',
+        email: paymentData.notes?.email || paymentData.email,
+        phone: paymentData.notes?.phone || paymentData.contact,
+        address: paymentData.notes?.addr || 'Default Address',
+        city: paymentData.notes?.city || 'Default City',
+        state: paymentData.notes?.state || 'Default State',
+        postal_code: paymentData.notes?.pin || '000000',
+        product_id: paymentData.notes?.pid || 'default',
+        product_title: paymentData.notes?.title || 'Subscription',
+        frequency: paymentData.notes?.freq || '1'
+      };
+    } catch (e) {
+      console.log('Could not parse subscription data from payment notes, using fallback');
+    }
+    
+    // Get customer info from parsed data or fallback to payment data
+    const customerEmail = subscriptionInfo.email || paymentData.email;
+    const customerPhone = subscriptionInfo.phone || paymentData.contact;
+    const variantId = subscriptionInfo.product_id || '46513506222269'; // Fallback variant
+    
+    // Extract address information from parsed data
+    const customerName = subscriptionInfo.customer_name || 'Customer Name';
+    const firstName = customerName.split(' ')[0] || 'Customer';
+    const lastName = customerName.split(' ').slice(1).join(' ') || 'Name';
+    const address = subscriptionInfo.address || 'Default Address';
+    const addressLine2 = ''; // Not stored in payment notes
+    const city = subscriptionInfo.city || 'Default City';
+    const state = subscriptionInfo.state || 'Default State';
+    const postalCode = subscriptionInfo.postal_code || '000000';
+    const country = 'IN'; // Default country
+
+    console.log('👤 Customer info extracted:', {
+      email: customerEmail,
+      phone: customerPhone,
+      variantId: variantId
+    });
+
+    console.log('🏠 Address information extracted:', {
+      customerName,
+      firstName,
+      lastName,
+      address,
+      city,
+      state,
+      postalCode,
+      country
+    });
+
+    // Use payment amount directly (in paise, convert to rupees)
+    const planAmount = paymentData.amount || 1500; // Fallback to 15.00
+
+    console.log('💰 Using payment amount:', {
+      paymentId: paymentData.id,
+      amount: planAmount,
+      amountInRupees: (planAmount / 100).toFixed(2)
+    });
+
+    // Build Shopify order data
+    const orderData = {
+      order: {
+        email: customerEmail,
+        phone: customerPhone,
+        financial_status: 'paid',
+        line_items: [
+          {
+            variant_id: getVariantId(variantId),
+            quantity: 1,
+            title: `${subscriptionInfo.product_title || 'Subscription'} - Payment ${paymentData.id}`,
+            price: (planAmount / 100).toString(), // Convert from paise to rupees
+            taxable: true
+          }
+        ],
+        note: `Payment ID: ${paymentData.id} | Customer: ${customerName}`,
+        tags: ['subscription', 'razorpay', 'payment', 'mandate-flow'],
+        shipping_address: {
+          first_name: firstName,
+          last_name: lastName,
+          address1: address,
+          address2: addressLine2,
+          city: city,
+          province: state,
+          country: country,
+          zip: postalCode
+        },
+        billing_address: {
+          first_name: firstName,
+          last_name: lastName,
+          address1: address,
+          address2: addressLine2,
+          city: city,
+          province: state,
+          country: country,
+          zip: postalCode
+        },
+        send_receipt: false,
+        send_fulfillment_receipt: false,
+        send_invoice: true
+      }
+    };
+
+    console.log('🛒 Shopify order data prepared from payment:', {
+      customerEmail,
+      customerName,
+      variantId,
+      totalAmount: (planAmount / 100).toString(),
+      shippingAddress: `${address}, ${city}, ${state} ${postalCode}`,
+      lineItemsCount: orderData.order.line_items.length
+    });
+
+    console.log('📤 Sending request to Shopify API...');
+    
+    // First try to find existing customer by email
+    let shopifyCustomer = null;
+    try {
+      console.log('🔍 Checking for existing customer in Shopify...');
+      const customerSearchResponse = await axios.get(`https://${process.env.SHOPIFY_STORE_NAME}/admin/api/2023-10/customers/search.json?query=email:${encodeURIComponent(customerEmail)}`, {
+        headers: {
+          'X-Shopify-Access-Token': process.env.SHOPIFY_ACCESS_TOKEN,
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      if (customerSearchResponse.data.customers && customerSearchResponse.data.customers.length > 0) {
+        shopifyCustomer = customerSearchResponse.data.customers[0];
+        console.log('✅ Found existing customer:', shopifyCustomer.id);
+        
+        // Update order with existing customer ID
+        orderData.order.customer_id = shopifyCustomer.id;
+      } else {
+        console.log('ℹ️ No existing customer found, will create new one');
+      }
+    } catch (customerError) {
+      console.log('⚠️ Customer search failed, proceeding with order creation:', customerError.message);
+    }
+
+    const response = await axios.post(shopifyUrl, orderData, {
+      headers: {
+        'X-Shopify-Access-Token': process.env.SHOPIFY_ACCESS_TOKEN,
+        'Content-Type': 'application/json'
+      }
+    });
+
+    console.log('✅ SUCCESS: Shopify order created from payment!');
+    console.log('📦 Order details:', {
+      orderId: response.data.order.id,
+      orderNumber: response.data.order.order_number,
+      customerEmail: response.data.order.email,
+      totalAmount: response.data.order.total_price
+    });
+
+    return response.data.order;
+
+  } catch (error) {
+    console.error('❌ FAILED: Shopify order creation from payment failed!');
+    console.error('🔥 Error details:', {
+      message: error.message,
+      status: error.response?.status,
+      statusText: error.response?.statusText,
+      paymentId: paymentData.id,
+      customerEmail: paymentData.email
+    });
+
+    if (error.response?.data) {
+      console.error('📋 Shopify API Error Response:', error.response.data);
+    }
+
+    throw error;
+  }
+}
 
 // Shopify Order Creation Function
 async function createShopifyOrder(subscriptionData) {
