@@ -1462,12 +1462,10 @@ async function createShopifyOrder(subscriptionData) {
           country: country,
           zip: postalCode
         },
-        customer: {
-          first_name: firstName,
-          last_name: lastName,
-          email: customerEmail,
-          phone: customerPhone
-        }
+        // Try to find existing customer first, if not found create new one
+        send_receipt: false,
+        send_fulfillment_receipt: false,
+        send_invoice: true
       }
     };
 
@@ -1482,6 +1480,30 @@ async function createShopifyOrder(subscriptionData) {
 
     console.log('📤 Sending request to Shopify API...');
     
+    // First try to find existing customer by email
+    let shopifyCustomer = null;
+    try {
+      console.log('🔍 Checking for existing customer in Shopify...');
+      const customerSearchResponse = await axios.get(`https://${process.env.SHOPIFY_STORE_NAME}/admin/api/2023-10/customers/search.json?query=email:${encodeURIComponent(customerEmail)}`, {
+        headers: {
+          'X-Shopify-Access-Token': process.env.SHOPIFY_ACCESS_TOKEN,
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      if (customerSearchResponse.data.customers && customerSearchResponse.data.customers.length > 0) {
+        shopifyCustomer = customerSearchResponse.data.customers[0];
+        console.log('✅ Found existing customer:', shopifyCustomer.id);
+        
+        // Update order with existing customer ID
+        orderData.order.customer_id = shopifyCustomer.id;
+      } else {
+        console.log('ℹ️ No existing customer found, will create new one');
+      }
+    } catch (customerError) {
+      console.log('⚠️ Customer search failed, proceeding with order creation:', customerError.message);
+    }
+
     const response = await axios.post(shopifyUrl, orderData, {
       headers: {
         'X-Shopify-Access-Token': process.env.SHOPIFY_ACCESS_TOKEN,
