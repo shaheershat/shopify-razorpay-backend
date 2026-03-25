@@ -1305,30 +1305,10 @@ app.post('/webhooks/razorpay', express.raw({type: 'application/json'}), async (r
         console.log('💳 Payment authorized:', event.payload.payment.entity.id);
         console.log('📋 Payment entity details:', JSON.stringify(event.payload.payment.entity, null, 2));
         
-        // Create order for payment - get subscription from payment entity
-        try {
-          if (event.payload.payment.entity && event.payload.payment.entity.subscription_id) {
-            // Fetch subscription details to get full data
-            console.log('🔗 Found subscription_id:', event.payload.payment.entity.subscription_id);
-            const subscriptionResponse = await razorpay.subscriptions.fetch(event.payload.payment.entity.subscription_id);
-            await createShopifyOrder(subscriptionResponse);
-          } else if (event.payload.payment.entity && event.payload.payment.entity.notes && event.payload.payment.entity.notes.subscription_id) {
-            // Try to get subscription_id from notes
-            console.log('🔗 Found subscription_id in notes:', event.payload.payment.entity.notes.subscription_id);
-            const subscriptionResponse = await razorpay.subscriptions.fetch(event.payload.payment.entity.notes.subscription_id);
-            await createShopifyOrder(subscriptionResponse);
-          } else {
-            console.error('❌ No subscription_id found in payment entity');
-            console.error('📋 Available payment fields:', Object.keys(event.payload.payment.entity || {}));
-            
-            // For mandate flow, the payment might not have subscription_id
-            // Let's try to create order with available payment data
-            console.log('🔄 Creating order from payment data directly...');
-            await createShopifyOrderFromPayment(event.payload.payment.entity);
-          }
-        } catch (orderError) {
-          console.error('Failed to create Shopify order for payment:', orderError);
-        }
+        // DO NOT create Shopify order for individual payments
+        // Only subscription.activated should create orders
+        console.log('ℹ️ Payment received - Shopify order will be created by subscription.activated webhook');
+        
         break;
 
       case 'subscription.cancelled':
@@ -1359,15 +1339,9 @@ app.post('/webhooks/razorpay', express.raw({type: 'application/json'}), async (r
           console.log('📋 Available payment fields:', Object.keys(event.payload.payment.entity));
         }
         
-        // Create failed order record for tracking
-        try {
-          await createFailedPaymentOrder(event.payload.payment.entity);
-        } catch (orderError) {
-          console.error('Failed to create failed payment order record:', orderError);
-        }
-        
-        // Handle failed payment - notify customer
-        await handlePaymentFailure(event.payload.payment.entity);
+        // DO NOT create failed payment orders
+        // Only log the failure for debugging
+        console.log('ℹ️ Payment failed - no Shopify order created (only subscription.activated creates orders)');
         
         break;
 
@@ -1698,21 +1672,21 @@ async function createShopifyOrder(subscriptionData) {
       notesCount: Object.keys(subscriptionData.notes || {}).length
     });
     
-    // Parse subscription data from notes (new shortened format)
+    // Parse subscription data from notes (using original logic)
     let subscriptionInfo = {};
     try {
-      // Extract from shortened notes
+      // Extract from notes (original format)
       subscriptionInfo = {
-        customer_name: subscriptionData.notes?.name || 'Customer Name',
+        customer_name: subscriptionData.notes?.name || subscriptionData.notes?.customer_name || 'Customer Name',
         email: subscriptionData.notes?.email || subscriptionData.email,
         phone: subscriptionData.notes?.phone || subscriptionData.phone,
-        address: subscriptionData.notes?.addr || 'Default Address',
+        address: subscriptionData.notes?.addr || subscriptionData.notes?.address || 'Default Address',
         city: subscriptionData.notes?.city || 'Default City',
         state: subscriptionData.notes?.state || 'Default State',
-        postal_code: subscriptionData.notes?.pin || '000000',
-        product_id: subscriptionData.notes?.pid || subscriptionData.product_id,
-        product_title: subscriptionData.notes?.title || 'Subscription',
-        frequency: subscriptionData.notes?.freq || '1'
+        postal_code: subscriptionData.notes?.pin || subscriptionData.notes?.postal_code || '000000',
+        product_id: subscriptionData.notes?.pid || subscriptionData.notes?.product_id || subscriptionData.product_id,
+        product_title: subscriptionData.notes?.title || subscriptionData.notes?.product_title || 'Subscription',
+        frequency: subscriptionData.notes?.freq || subscriptionData.notes?.frequency || '1'
       };
     } catch (e) {
       console.log('Could not parse subscription data from notes, using fallback');
@@ -1728,11 +1702,11 @@ async function createShopifyOrder(subscriptionData) {
     const firstName = customerName.split(' ')[0] || 'Customer';
     const lastName = customerName.split(' ').slice(1).join(' ') || 'Name';
     const address = subscriptionInfo.address || 'Default Address';
-    const addressLine2 = ''; // Not stored in shortened notes
+    const addressLine2 = subscriptionData.notes?.address_line_2 || ''; // Get from notes if available
     const city = subscriptionInfo.city || 'Default City';
     const state = subscriptionInfo.state || 'Default State';
     const postalCode = subscriptionInfo.postal_code || '000000';
-    const country = 'IN'; // Default country
+    const country = subscriptionData.notes?.country || 'IN'; // Get from notes if available
     
     console.log('👤 Customer info extracted:', {
       email: customerEmail,
@@ -1769,7 +1743,7 @@ async function createShopifyOrder(subscriptionData) {
       console.log('🔄 Using fallback amount:', planAmount);
     }
     
-    // Build Shopify order data
+    // Build Shopify order data (using original logic)
     const orderData = {
       order: {
         email: customerEmail,
@@ -1806,10 +1780,12 @@ async function createShopifyOrder(subscriptionData) {
           country: country,
           zip: postalCode
         },
-        // Try to find existing customer first, if not found create new one
-        send_receipt: false,
-        send_fulfillment_receipt: false,
-        send_invoice: true
+        customer: {
+          first_name: firstName,
+          last_name: lastName,
+          email: customerEmail,
+          phone: customerPhone
+        }
       }
     };
 
@@ -1824,30 +1800,6 @@ async function createShopifyOrder(subscriptionData) {
 
     console.log('📤 Sending request to Shopify API...');
     
-    // First try to find existing customer by email
-    let shopifyCustomer = null;
-    try {
-      console.log('🔍 Checking for existing customer in Shopify...');
-      const customerSearchResponse = await axios.get(`https://${process.env.SHOPIFY_STORE_NAME}/admin/api/2023-10/customers/search.json?query=email:${encodeURIComponent(customerEmail)}`, {
-        headers: {
-          'X-Shopify-Access-Token': process.env.SHOPIFY_ACCESS_TOKEN,
-          'Content-Type': 'application/json'
-        }
-      });
-      
-      if (customerSearchResponse.data.customers && customerSearchResponse.data.customers.length > 0) {
-        shopifyCustomer = customerSearchResponse.data.customers[0];
-        console.log('✅ Found existing customer:', shopifyCustomer.id);
-        
-        // Update order with existing customer ID
-        orderData.order.customer_id = shopifyCustomer.id;
-      } else {
-        console.log('ℹ️ No existing customer found, will create new one');
-      }
-    } catch (customerError) {
-      console.log('⚠️ Customer search failed, proceeding with order creation:', customerError.message);
-    }
-
     const response = await axios.post(shopifyUrl, orderData, {
       headers: {
         'X-Shopify-Access-Token': process.env.SHOPIFY_ACCESS_TOKEN,
