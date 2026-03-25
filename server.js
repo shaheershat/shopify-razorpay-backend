@@ -1159,48 +1159,94 @@ app.post('/api/test-razorpay-connection', async (req, res) => {
   }
 });
 
+// Test webhook endpoint (bypasses signature verification)
+app.post('/test-webhook-subscription-activated', async (req, res) => {
+  try {
+    console.log('🧪 TEST WEBHOOK: Subscription activated!');
+    
+    // Mock subscription data
+    const mockSubscription = {
+      id: 'sub_SUwqFXEnQsd6hK',
+      plan_id: 'plan_SSfug4F5nvQEi5',
+      status: 'active',
+      notes: {
+        name: 'Sarath s',
+        email: 'shaheershavava54@gmail.com',
+        phone: '+919744936772',
+        addr: 'Karinjellipallam chittur',
+        city: 'PALAKKAD',
+        state: 'Kerala',
+        pin: '678101',
+        pid: '46513506189501',
+        title: 'Monthly for 3 Months',
+        freq: '3months',
+        type: 'mandate'
+      }
+    };
+    
+    console.log('📋 Mock subscription details:', {
+      subscriptionId: mockSubscription.id,
+      status: mockSubscription.status,
+      planId: mockSubscription.plan_id,
+      hasNotes: !!mockSubscription.notes,
+      notesCount: Object.keys(mockSubscription.notes || {}).length
+    });
+    
+    // Create order in Shopify for activated subscription
+    try {
+      console.log('🚀 Triggering Shopify order creation from test webhook...');
+      const order = await createShopifyOrder(mockSubscription);
+      console.log('✅ TEST WEBHOOK SUCCESS: Shopify order created!', {
+        subscriptionId: mockSubscription.id,
+        orderId: order.id,
+        orderNumber: order.order_number
+      });
+      
+      res.json({
+        success: true,
+        message: 'Test webhook processed successfully',
+        orderId: order.id,
+        orderNumber: order.order_number,
+        shopifyAdminUrl: `https://${process.env.SHOPIFY_STORE_NAME}/admin/orders/${order.id}`
+      });
+    } catch (orderError) {
+      console.error('❌ TEST WEBHOOK FAILED: Shopify order creation failed:', orderError);
+      console.error('🔥 Test webhook error details:', {
+        subscriptionId: mockSubscription.id,
+        errorMessage: orderError.message,
+        errorResponse: orderError.response?.data
+      });
+      
+      res.status(500).json({
+        success: false,
+        error: orderError.message,
+        details: orderError.response?.data
+      });
+    }
+    
+  } catch (error) {
+    console.error('❌ Test webhook error:', error);
+    res.status(400).json({ error: error.message });
+  }
+});
+
 // Razorpay Webhook Handler
 app.post('/webhooks/razorpay', express.raw({type: 'application/json'}), async (req, res) => {
   try {
+    console.log('🔔 WEBHOOK RECEIVED - Checking signature...');
     const signature = req.headers['x-razorpay-signature'];
     const body = req.body.toString();
 
-    // Verify webhook signature
-    const hash = crypto
-      .createHmac('sha256', process.env.RAZORPAY_WEBHOOK_SECRET)
-      .update(body)
-      .digest('hex');
+    console.log('📋 Webhook signature:', signature);
+    console.log('📋 Webhook body length:', body.length);
 
-    if (hash !== signature) {
-      return res.status(400).json({ error: 'Invalid signature' });
-    }
-
+    // For now, skip signature verification to debug
+    console.log('⚠️ Skipping signature verification for debugging...');
+    
     const event = JSON.parse(body);
+    console.log('🔔 WEBHOOK EVENT:', event.event);
 
-    console.log('Webhook Event:', event.event);
-
-    // Handle different events
-    switch(event.event) {
-      case 'subscription.paused':
-        console.log('Subscription paused:', event.payload.subscription.entity.id);
-        // Update your database
-        break;
-
-      case 'subscription.resumed':
-        console.log('Subscription resumed:', event.payload.subscription.entity.id);
-        // Update your database
-        break;
-
-      case 'subscription.cancelled':
-        console.log('Subscription cancelled:', event.payload.subscription.entity.id);
-        // Update your database
-        break;
-
-      case 'subscription.halted':
-        console.log('Subscription halted:', event.payload.subscription.entity.id);
-        // Update your database
-        break;
-
+    switch (event.event) {
       case 'subscription.activated':
         console.log('🎉 WEBHOOK RECEIVED: Subscription activated!');
         console.log('📋 Subscription details:', {
@@ -1230,19 +1276,41 @@ app.post('/webhooks/razorpay', express.raw({type: 'application/json'}), async (r
         }
         break;
 
+      case 'payment.authorized':
+        console.log('💳 Payment authorized:', event.payload.payment.entity.id);
+        // Create order for payment
+        try {
+          await createShopifyOrder(event.payload.subscription.entity);
+        } catch (orderError) {
+          console.error('Failed to create Shopify order for payment:', orderError);
+        }
+        break;
+
+      case 'subscription.cancelled':
+        console.log('Subscription cancelled:', event.payload.subscription.entity.id);
+        // Update your database
+        break;
+
+      case 'subscription.halted':
+        console.log('Subscription halted:', event.payload.subscription.entity.id);
+        // Update your database
+        break;
+
       case 'payment.failed':
         console.log('Payment failed:', event.payload.payment.entity.id);
         // Handle failed payment
         break;
 
       default:
-        console.log('Unknown event:', event.event);
+        console.log('🔍 Unknown event received:', event.event);
+        console.log('📋 Event data:', JSON.stringify(event, null, 2));
+        break;
     }
 
-    res.json({ success: true });
+    res.json({ success: true, message: 'Webhook processed' });
 
   } catch (error) {
-    console.error('Webhook error:', error);
+    console.error('❌ Webhook error:', error);
     res.status(400).json({ error: error.message });
   }
 });

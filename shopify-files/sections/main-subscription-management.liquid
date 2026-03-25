@@ -25,25 +25,30 @@
     
     <!-- Subscription Tabs -->
     <div id="subscriptionTabs" class="bg-white rounded-lg shadow-md p-4 mb-6 hidden">
-      <div class="flex flex-wrap gap-2 border-b border-gray-200">
-        <button class="subscription-tab px-4 py-2 font-medium text-sm border-b-2 transition-colors border-blue-500 text-blue-600" data-filter="active">
-          Active (<span id="activeCount">0</span>)
-        </button>
-        <button class="subscription-tab px-4 py-2 font-medium text-sm border-b-2 transition-colors border-transparent text-gray-500 hover:text-gray-700" data-filter="paused">
-          Paused (<span id="pausedCount">0</span>)
-        </button>
-        <button class="subscription-tab px-4 py-2 font-medium text-sm border-b-2 transition-colors border-transparent text-gray-500 hover:text-gray-700" data-filter="cancelled">
-          Cancelled (<span id="cancelledCount">0</span>)
-        </button>
-        <button class="subscription-tab px-4 py-2 font-medium text-sm border-b-2 transition-colors border-transparent text-gray-500 hover:text-gray-700" data-filter="completed">
-          Completed (<span id="completedCount">0</span>)
-        </button>
+      <div class="flex flex-wrap justify-between items-center">
+        <h2 class="text-2xl font-bold text-gray-900 mb-4 sm:mb-0">Your Subscriptions</h2>
+        <div class="status-tabs">
+          <button class="status-tab active" data-filter="active">Active (<span id="activeCount">0</span>)</button>
+          <button class="status-tab" data-filter="paused">Paused (<span id="pausedCount">0</span>)</button>
+          <button class="status-tab" data-filter="cancelled">Cancelled (<span id="cancelledCount">0</span>)</button>
+          <button class="status-tab" data-filter="completed">Completed (<span id="completedCount">0</span>)</button>
+        </div>
       </div>
     </div>
     
     <!-- Subscriptions List -->
     <div id="subscriptionsList" class="space-y-6 hidden">
       <!-- Subscriptions will be dynamically added here -->
+    </div>
+    
+    <!-- Product Details Template -->
+    <div id="productDetailsTemplate" class="hidden">
+      <div class="product-details-section">
+        <div class="section-title">Product Details</div>
+        <div class="product-grid">
+          <!-- Products will be dynamically added here -->
+        </div>
+      </div>
     </div>
     
     <!-- Empty States -->
@@ -62,15 +67,15 @@
   </div>
 
   <!-- Subscription Action Modal -->
-  <div id="actionModal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50 flex items-center justify-center">
-    <div class="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+  <div id="actionModal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50 flex items-center justify-center" style="display: none;">
+    <div class="bg-white rounded-lg p-6 max-w-md w-full mx-4 relative z-10">
       <h3 id="modalTitle" class="text-xl font-bold mb-4">Confirm Action</h3>
       <p id="modalMessage" class="text-gray-600 mb-6">Are you sure you want to perform this action?</p>
       <div class="flex gap-3">
-        <button id="confirmAction" class="flex-1 bg-blue-600 text-white py-2 rounded-lg font-semibold hover:bg-blue-700 transition-colors">
+        <button id="confirmAction" class="flex-1 bg-blue-600 text-white py-2 rounded-lg font-semibold hover:bg-blue-700 transition-colors cursor-pointer">
           Confirm
         </button>
-        <button id="cancelAction" class="flex-1 bg-gray-300 text-gray-700 py-2 rounded-lg font-semibold hover:bg-gray-400 transition-colors">
+        <button id="cancelAction" class="flex-1 bg-gray-300 text-gray-700 py-2 rounded-lg font-semibold hover:bg-gray-400 transition-colors cursor-pointer">
           Cancel
         </button>
       </div>
@@ -88,6 +93,21 @@
     
     // Debug: Log configuration
     console.log('Subscription Management Config:', window.subscriptionConfig);
+    console.log('Liquid template loaded successfully');
+    
+    // Initialize subscription management when DOM is ready
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', function() {
+        console.log('DOM fully loaded - initializing subscription management');
+        // The JavaScript will auto-initialize via DOMContentLoaded listener
+      });
+    } else {
+      console.log('DOM already loaded - initializing subscription management immediately');
+      // Initialize immediately if DOM is already loaded
+      if (typeof SubscriptionManagement !== 'undefined' && !window.subscriptionManagement) {
+        window.subscriptionManagement = new SubscriptionManagement();
+      }
+    }
   </script>
 {%- endunless -%}
 

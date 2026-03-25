@@ -1,0 +1,427 @@
+<html>
+<style>
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  background: linear-gradient(135deg, #f8f4f9 0%, #fef5f0 100%);
+  min-height: 100vh;
+}
+
+.mobile-frame {
+  max-width: 390px;
+  margin: 20px auto;
+  background: white;
+  border-radius: 40px;
+  border: 12px solid #1a1a1a;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+  overflow: hidden;
+  aspect-ratio: 9/20;
+}
+
+.status-bar {
+  background: #1a1a1a;
+  color: white;
+  padding: 8px 16px;
+  font-size: 12px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.mobile-content {
+  height: 100%;
+  overflow-y: auto;
+  padding: 20px 16px;
+  background: linear-gradient(135deg, #f8f4f9 0%, #fef5f0 100%);
+}
+
+/* Header */
+.mobile-header {
+  margin-bottom: 24px;
+}
+
+.mobile-header h1 {
+  font-size: 26px;
+  font-weight: 700;
+  color: #1a1a1a;
+  margin-bottom: 2px;
+}
+
+.mobile-header p {
+  font-size: 13px;
+  color: #999;
+}
+
+/* Status Tabs Mobile */
+.status-tabs-mobile {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 20px;
+  overflow-x: auto;
+}
+
+.status-tab-mobile {
+  padding: 8px 16px;
+  border: none;
+  border-radius: 50px;
+  background: white;
+  color: #666;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  border: 1px solid #e0e0e0;
+  transition: all 0.3s ease;
+}
+
+.status-tab-mobile.active {
+  background: #FF1493;
+  color: white;
+  border: none;
+}
+
+/* Subscription Card Mobile */
+.subscription-card-mobile {
+  background: white;
+  border-radius: 16px;
+  padding: 20px;
+  margin-bottom: 16px;
+  border: 1px solid #e8e8e8;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.05);
+}
+
+.card-header-mobile {
+  margin-bottom: 16px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.plan-title-mobile {
+  font-size: 18px;
+  font-weight: 700;
+  color: #1a1a1a;
+  margin-bottom: 8px;
+}
+
+.badge-mobile {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: #E8F5E9;
+  color: #27AE60;
+  padding: 6px 12px;
+  border-radius: 50px;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.badge-mobile::before {
+  content: "●";
+  font-size: 8px;
+}
+
+.price-mobile {
+  font-size: 24px;
+  font-weight: 700;
+  color: #FF1493;
+  margin-top: 12px;
+}
+
+.price-label-mobile {
+  font-size: 12px;
+  color: #999;
+  font-weight: 500;
+}
+
+/* Key Info Mobile */
+.key-info-mobile {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.info-item-mobile {
+  background: #f9f5f7;
+  padding: 12px;
+  border-radius: 10px;
+  border: 1px solid #f0e8f0;
+}
+
+.info-label-mobile {
+  font-size: 10px;
+  color: #999;
+  font-weight: 700;
+  text-transform: uppercase;
+  margin-bottom: 4px;
+  letter-spacing: 0.3px;
+}
+
+.info-value-mobile {
+  font-size: 13px;
+  color: #1a1a1a;
+  font-weight: 600;
+}
+
+/* Products Mobile */
+.products-mobile {
+  background: linear-gradient(135deg, #fff5f9 0%, #f5f9f9 100%);
+  padding: 16px;
+  border-radius: 12px;
+  border: 1px solid rgba(27, 123, 120, 0.1);
+  margin-bottom: 16px;
+}
+
+.product-title-mobile {
+  font-size: 11px;
+  font-weight: 700;
+  color: #1a1a1a;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  margin-bottom: 12px;
+}
+
+.product-list-mobile {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.product-item-mobile {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  font-size: 12px;
+  color: #333;
+  font-weight: 500;
+  line-height: 1.4;
+}
+
+.product-item-mobile::before {
+  content: "•";
+  color: #FF1493;
+  font-size: 14px;
+  flex-shrink: 0;
+  margin-top: -2px;
+}
+
+/* Additional Info Mobile */
+.additional-info-mobile {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.info-box-mobile {
+  background: #f9f5f7;
+  padding: 12px;
+  border-radius: 10px;
+  border: 1px solid #f0e8f0;
+}
+
+.info-box-label-mobile {
+  font-size: 10px;
+  color: #999;
+  font-weight: 700;
+  text-transform: uppercase;
+  margin-bottom: 4px;
+  letter-spacing: 0.3px;
+}
+
+.info-box-value-mobile {
+  font-size: 13px;
+  color: #1a1a1a;
+  font-weight: 600;
+}
+
+/* Buttons Mobile */
+.button-group-mobile {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+}
+
+.button-mobile {
+  padding: 12px 12px;
+  border: none;
+  border-radius: 10px;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  text-align: center;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+.button-mobile-secondary {
+  background: white;
+  color: #FF1493;
+  border: 2px solid #FF1493;
+}
+
+.button-mobile-secondary:active {
+  background: #FFF5FA;
+  transform: scale(0.98);
+}
+
+.button-mobile-primary {
+  background: #FF1493;
+  color: white;
+  box-shadow: 0 3px 10px rgba(255, 20, 147, 0.25);
+  grid-column: 1 / -1;
+}
+
+.button-mobile-primary:active {
+  background: #E60D7F;
+  transform: scale(0.98);
+}
+
+.button-mobile-danger {
+  background: #FFE8F0;
+  color: #FF1493;
+  border: 1px solid #FFB6D9;
+  grid-column: 1 / -1;
+}
+
+.button-mobile-danger:active {
+  background: #FF1493;
+  color: white;
+}
+
+/* Empty State Mobile */
+.empty-state-mobile {
+  text-align: center;
+  padding: 40px 16px;
+}
+
+.empty-icon-mobile {
+  font-size: 48px;
+  margin-bottom: 12px;
+  opacity: 0.6;
+}
+
+.empty-title-mobile {
+  font-size: 14px;
+  font-weight: 700;
+  color: #1a1a1a;
+  margin-bottom: 6px;
+}
+
+.empty-text-mobile {
+  font-size: 12px;
+  color: #999;
+  line-height: 1.5;
+}
+
+/* Scrollbar */
+.mobile-content::-webkit-scrollbar {
+  width: 6px;
+}
+
+.mobile-content::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.mobile-content::-webkit-scrollbar-thumb {
+  background: #FFB6D9;
+  border-radius: 3px;
+}
+</style>
+
+<div class="mobile-frame">
+  <div class="status-bar">
+    <span>9:41</span>
+    <span>● ● ● ● ●</span>
+  </div>
+
+  <div class="mobile-content">
+    <div class="mobile-header">
+      <h1>Your Subscriptions</h1>
+      <p>Manage your plans</p>
+    </div>
+
+    <div class="status-tabs-mobile">
+      <button class="status-tab-mobile active">Active (1)</button>
+      <button class="status-tab-mobile">Paused (0)</button>
+      <button class="status-tab-mobile">Cancelled (0)</button>
+    </div>
+
+    <!-- Active Subscription -->
+    <div class="subscription-card-mobile">
+      <div class="card-header-mobile">
+        <div class="plan-title-mobile">3-Month Period Care Plan</div>
+        <span class="badge-mobile">Active</span>
+        <div class="price-mobile">₹399</div>
+        <div class="price-label-mobile">/month</div>
+      </div>
+
+      <div class="key-info-mobile">
+        <div class="info-item-mobile">
+          <div class="info-label-mobile">Next Delivery</div>
+          <div class="info-value-mobile">April 18</div>
+        </div>
+        <div class="info-item-mobile">
+          <div class="info-label-mobile">Duration</div>
+          <div class="info-value-mobile">3 months</div>
+        </div>
+      </div>
+
+      <div class="products-mobile">
+        <div class="product-title-mobile">Product Details</div>
+        <ul class="product-list-mobile">
+          <li class="product-item-mobile">Ultra Thin Pads – Large (20 pcs)</li>
+          <li class="product-item-mobile">Panty Liners (10 pcs)</li>
+          <li class="product-item-mobile">Disposal Bags (5 pcs)</li>
+        </ul>
+      </div>
+
+      <div class="additional-info-mobile">
+        <div class="info-box-mobile">
+          <div class="info-box-label-mobile">Delivery</div>
+          <div class="info-box-value-mobile">Home</div>
+        </div>
+        <div class="info-box-mobile">
+          <div class="info-box-label-mobile">Payment</div>
+          <div class="info-box-value-mobile">UPI</div>
+        </div>
+      </div>
+
+      <div class="button-group-mobile">
+        <button class="button-mobile button-mobile-secondary">⏸ Pause</button>
+        <button class="button-mobile button-mobile-secondary">⊲ Skip</button>
+        <button class="button-mobile button-mobile-primary">✏ Edit</button>
+        <button class="button-mobile button-mobile-danger">✕ Cancel</button>
+      </div>
+    </div>
+
+    <!-- Paused State -->
+    <div style="margin-top: 20px;">
+      <h2 style="font-size: 14px; font-weight: 700; margin-bottom: 12px; color: #1a1a1a;">Paused</h2>
+      <div class="subscription-card-mobile" style="background: #f9f9f9; border: 1px dashed #ddd;">
+        <div class="empty-state-mobile">
+          <div class="empty-icon-mobile">📦</div>
+          <div class="empty-title-mobile">No Paused Plans</div>
+          <div class="empty-text-mobile">Your paused subscriptions will appear here.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+document.querySelectorAll('.status-tab-mobile').forEach(tab => {
+  tab.addEventListener('click', function() {
+    document.querySelectorAll('.status-tab-mobile').forEach(t => t.classList.remove('active'));
+    this.classList.add('active');
+  });
+});
+</script>
+</html>
