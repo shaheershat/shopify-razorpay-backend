@@ -1303,9 +1303,15 @@ app.post('/webhooks/razorpay', express.raw({type: 'application/json'}), async (r
 
       case 'payment.authorized':
         console.log('💳 Payment authorized:', event.payload.payment.entity.id);
-        // Create order for payment
+        // Create order for payment - get subscription from payment entity
         try {
-          await createShopifyOrder(event.payload.subscription.entity);
+          if (event.payload.payment.entity && event.payload.payment.entity.subscription_id) {
+            // Fetch the subscription details to get full data
+            const subscriptionResponse = await razorpay.subscriptions.fetch(event.payload.payment.entity.subscription_id);
+            await createShopifyOrder(subscriptionResponse);
+          } else {
+            console.error('❌ No subscription_id found in payment entity');
+          }
         } catch (orderError) {
           console.error('Failed to create Shopify order for payment:', orderError);
         }
