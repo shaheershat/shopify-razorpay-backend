@@ -1305,9 +1305,29 @@ app.post('/webhooks/razorpay', express.raw({type: 'application/json'}), async (r
         console.log('💳 Payment authorized:', event.payload.payment.entity.id);
         console.log('📋 Payment entity details:', JSON.stringify(event.payload.payment.entity, null, 2));
         
-        // DO NOT create Shopify order for individual payments
-        // Only subscription.activated should create orders
-        console.log('ℹ️ Payment received - Shopify order will be created by subscription.activated webhook');
+        // Create Shopify order for each recurring payment
+        try {
+          if (event.payload.payment.entity && event.payload.payment.entity.subscription_id) {
+            // Fetch subscription details to get full data
+            console.log('🔗 Found subscription_id:', event.payload.payment.entity.subscription_id);
+            const subscriptionResponse = await razorpay.subscriptions.fetch(event.payload.payment.entity.subscription_id);
+            await createShopifyOrder(subscriptionResponse);
+          } else if (event.payload.payment.entity && event.payload.payment.entity.notes && event.payload.payment.entity.notes.subscription_id) {
+            // Try to get subscription_id from notes
+            console.log('🔗 Found subscription_id in notes:', event.payload.payment.entity.notes.subscription_id);
+            const subscriptionResponse = await razorpay.subscriptions.fetch(event.payload.payment.entity.notes.subscription_id);
+            await createShopifyOrder(subscriptionResponse);
+          } else {
+            console.error('❌ No subscription_id found in payment entity');
+            console.error('📋 Available payment fields:', Object.keys(event.payload.payment.entity || {}));
+            
+            // For mandate flow, create order from payment data directly
+            console.log('🔄 Creating order from payment data directly...');
+            await createShopifyOrderFromPayment(event.payload.payment.entity);
+          }
+        } catch (orderError) {
+          console.error('Failed to create Shopify order for payment:', orderError);
+        }
         
         break;
 
