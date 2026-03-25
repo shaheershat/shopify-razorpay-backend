@@ -1303,32 +1303,30 @@ app.post('/webhooks/razorpay', express.raw({type: 'application/json'}), async (r
 
       case 'payment.authorized':
         console.log('💳 Payment authorized:', event.payload.payment.entity.id);
-        console.log('📋 Payment entity details:', JSON.stringify(event.payload.payment.entity, null, 2));
+        console.log('📋 Payment entity details:', {
+          paymentId: event.payload.payment.entity.id,
+          hasSubscriptionId: !!event.payload.payment.entity.subscription_id,
+          subscriptionId: event.payload.payment.entity.subscription_id,
+          fullPaymentEntity: event.payload.payment.entity
+        });
         
         // Create order for payment - get subscription from payment entity
         try {
-          let subscriptionId = null;
-          
-          // Try different ways to get subscription ID
-          if (event.payload.payment.entity.subscription_id) {
-            subscriptionId = event.payload.payment.entity.subscription_id;
-          } else if (event.payload.payment.entity.notes && event.payload.payment.entity.notes.subscription_id) {
-            subscriptionId = event.payload.payment.entity.notes.subscription_id;
-          } else if (event.payload.payment.entity.invoice_id) {
-            // Try to get subscription from invoice
-            subscriptionId = event.payload.payment.entity.invoice_id;
-          }
-          
-          console.log('🔍 Found subscription ID:', subscriptionId);
-          
-          if (subscriptionId) {
-            // Fetch subscription details to get full data
-            console.log('🔄 Fetching subscription details for:', subscriptionId);
-            const subscriptionResponse = await razorpay.subscriptions.fetch(subscriptionId);
+          if (event.payload.payment.entity && event.payload.payment.entity.subscription_id) {
+            console.log('✅ Found subscription_id, fetching subscription details...');
+            // Fetch the subscription details to get full data
+            const subscriptionResponse = await razorpay.subscriptions.fetch(event.payload.payment.entity.subscription_id);
             await createShopifyOrder(subscriptionResponse);
           } else {
             console.error('❌ No subscription_id found in payment entity');
-            console.log('📋 Available payment fields:', Object.keys(event.payload.payment.entity));
+            // Try to get subscription from other sources
+            if (event.payload.payment.entity.notes && event.payload.payment.entity.notes.subscription_id) {
+              console.log('🔄 Found subscription_id in notes, fetching...');
+              const subscriptionResponse = await razorpay.subscriptions.fetch(event.payload.payment.entity.notes.subscription_id);
+              await createShopifyOrder(subscriptionResponse);
+            } else {
+              console.error('❌ No subscription_id found anywhere in payment entity');
+            }
           }
         } catch (orderError) {
           console.error('Failed to create Shopify order for payment:', orderError);
