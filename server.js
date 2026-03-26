@@ -1273,7 +1273,7 @@ app.post('/webhooks/razorpay', express.raw({type: 'application/json'}), async (r
 
     switch (event.event) {
       case 'subscription.activated':
-        console.log('🎉 WEBHOOK RECEIVED: Subscription activated!');
+        console.log('🎉 WEBHOOK EVENT: subscription.activated');
         console.log('📋 Subscription details:', {
           subscriptionId: event.payload.subscription.entity.id,
           status: event.payload.subscription.entity.status,
@@ -1282,27 +1282,17 @@ app.post('/webhooks/razorpay', express.raw({type: 'application/json'}), async (r
           notesCount: Object.keys(event.payload.subscription.entity.notes || {}).length
         });
         
-        // Create order in Shopify for activated subscription
-        try {
-          console.log('🚀 Triggering Shopify order creation from webhook...');
-          const order = await createShopifyOrder(event.payload.subscription.entity);
-          console.log('✅ WEBHOOK SUCCESS: Shopify order created via webhook!', {
-            subscriptionId: event.payload.subscription.entity.id,
-            orderId: order.id,
-            orderNumber: order.order_number
-          });
-        } catch (orderError) {
-          console.error('❌ WEBHOOK FAILED: Shopify order creation failed from webhook:', orderError);
-          console.error('🔥 Webhook error details:', {
-            subscriptionId: event.payload.subscription.entity.id,
-            errorMessage: orderError.message,
-            errorResponse: orderError.response?.data
-          });
-        }
+        // DO NOT create Shopify order on authentication
+        // Order will be created on first recurring payment
+        console.log('📅 AUTHENTICATION SUCCESSFUL!');
+        console.log('📅 Shopify order will be created tomorrow when first recurring payment is charged');
+        console.log('📅 No order created on authentication - waiting for first recurring payment');
+        console.log('� Customer will be charged tomorrow and order will be created automatically');
+        
         break;
 
       case 'payment.authorized':
-        console.log('💳 Payment authorized:', event.payload.payment.entity.id);
+        console.log('💳 PAYMENT AUTHORIZED:', event.payload.payment.entity.id);
         console.log('📋 Payment entity details:', JSON.stringify(event.payload.payment.entity, null, 2));
         
         // Create Shopify order ONLY for recurring payments (not one-time payments)
@@ -1310,25 +1300,36 @@ app.post('/webhooks/razorpay', express.raw({type: 'application/json'}), async (r
           // Check if this is a recurring payment by looking for subscription_id
           if (event.payload.payment.entity && event.payload.payment.entity.subscription_id) {
             console.log('🔗 Found subscription_id - this is a RECURRING payment');
-            console.log('🔄 Creating Shopify order for recurring payment...');
+            console.log('� RECURRING PAYMENT DETECTED - Creating Shopify order...');
+            console.log('📦 Order will be created for this recurring payment');
             
             // Fetch subscription details to get full data
             const subscriptionResponse = await razorpay.subscriptions.fetch(event.payload.payment.entity.subscription_id);
             await createShopifyOrder(subscriptionResponse);
+            
+            console.log('✅ RECURRING PAYMENT ORDER CREATED SUCCESSFULLY!');
+            console.log('💳 Customer charged: ₹' + (event.payload.payment.entity.amount / 100));
+            console.log('📦 Shopify order created for this recurring payment');
           } else if (event.payload.payment.entity && event.payload.payment.entity.notes && 
                      (event.payload.payment.entity.notes.subscription_type === 'mandate' || 
                       event.payload.payment.entity.notes.type === 'mandate')) {
             console.log('🔗 Found mandate notes - this is a RECURRING payment');
-            console.log('🔄 Creating Shopify order for recurring payment...');
+            console.log('� RECURRING PAYMENT DETECTED - Creating Shopify order...');
+            console.log('📦 Order will be created for this recurring payment');
             
             // For mandate flow, create order from payment data directly
             await createShopifyOrderFromPayment(event.payload.payment.entity);
+            
+            console.log('✅ RECURRING PAYMENT ORDER CREATED SUCCESSFULLY!');
+            console.log('💳 Customer charged: ₹' + (event.payload.payment.entity.amount / 100));
+            console.log('📦 Shopify order created for this recurring payment');
           } else {
             console.log('ℹ️ This is a one-time payment - NO Shopify order created');
-            console.log('ℹ️ Only recurring payments and subscription activation create orders');
+            console.log('ℹ️ Only recurring payments create Shopify orders');
+            console.log('ℹ️ One-time payment detected - skipping order creation');
           }
         } catch (orderError) {
-          console.error('Failed to create Shopify order for recurring payment:', orderError);
+          console.error('❌ FAILED: Could not create Shopify order for recurring payment:', orderError);
         }
         
         break;
