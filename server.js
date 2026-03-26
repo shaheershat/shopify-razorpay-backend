@@ -1305,28 +1305,30 @@ app.post('/webhooks/razorpay', express.raw({type: 'application/json'}), async (r
         console.log('💳 Payment authorized:', event.payload.payment.entity.id);
         console.log('📋 Payment entity details:', JSON.stringify(event.payload.payment.entity, null, 2));
         
-        // Create Shopify order for each recurring payment
+        // Create Shopify order ONLY for recurring payments (not one-time payments)
         try {
+          // Check if this is a recurring payment by looking for subscription_id
           if (event.payload.payment.entity && event.payload.payment.entity.subscription_id) {
+            console.log('🔗 Found subscription_id - this is a RECURRING payment');
+            console.log('🔄 Creating Shopify order for recurring payment...');
+            
             // Fetch subscription details to get full data
-            console.log('🔗 Found subscription_id:', event.payload.payment.entity.subscription_id);
             const subscriptionResponse = await razorpay.subscriptions.fetch(event.payload.payment.entity.subscription_id);
             await createShopifyOrder(subscriptionResponse);
-          } else if (event.payload.payment.entity && event.payload.payment.entity.notes && event.payload.payment.entity.notes.subscription_id) {
-            // Try to get subscription_id from notes
-            console.log('🔗 Found subscription_id in notes:', event.payload.payment.entity.notes.subscription_id);
-            const subscriptionResponse = await razorpay.subscriptions.fetch(event.payload.payment.entity.notes.subscription_id);
-            await createShopifyOrder(subscriptionResponse);
-          } else {
-            console.error('❌ No subscription_id found in payment entity');
-            console.error('📋 Available payment fields:', Object.keys(event.payload.payment.entity || {}));
+          } else if (event.payload.payment.entity && event.payload.payment.entity.notes && 
+                     (event.payload.payment.entity.notes.subscription_type === 'mandate' || 
+                      event.payload.payment.entity.notes.type === 'mandate')) {
+            console.log('🔗 Found mandate notes - this is a RECURRING payment');
+            console.log('🔄 Creating Shopify order for recurring payment...');
             
             // For mandate flow, create order from payment data directly
-            console.log('🔄 Creating order from payment data directly...');
             await createShopifyOrderFromPayment(event.payload.payment.entity);
+          } else {
+            console.log('ℹ️ This is a one-time payment - NO Shopify order created');
+            console.log('ℹ️ Only recurring payments and subscription activation create orders');
           }
         } catch (orderError) {
-          console.error('Failed to create Shopify order for payment:', orderError);
+          console.error('Failed to create Shopify order for recurring payment:', orderError);
         }
         
         break;
