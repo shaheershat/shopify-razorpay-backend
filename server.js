@@ -1295,34 +1295,63 @@ app.post('/webhooks/razorpay', express.raw({type: 'application/json'}), async (r
         console.log('💳 PAYMENT AUTHORIZED:', event.payload.payment.entity.id);
         console.log('📋 Payment entity details:', JSON.stringify(event.payload.payment.entity, null, 2));
         
-        // Create Shopify order ONLY for recurring payments (not one-time payments)
+        // Create Shopify order ONLY for actual recurring payments (not authentication)
         try {
           // Check if this is a recurring payment by looking for subscription_id
           if (event.payload.payment.entity && event.payload.payment.entity.subscription_id) {
-            console.log('🔗 Found subscription_id - this is a RECURRING payment');
-            console.log('� RECURRING PAYMENT DETECTED - Creating Shopify order...');
-            console.log('📦 Order will be created for this recurring payment');
+            console.log('🔗 Found subscription_id - checking if this is authentication or recurring...');
             
-            // Fetch subscription details to get full data
-            const subscriptionResponse = await razorpay.subscriptions.fetch(event.payload.payment.entity.subscription_id);
-            await createShopifyOrder(subscriptionResponse);
+            // Check if this is the first payment (authentication) by looking at payment description or amount
+            const paymentDescription = event.payload.payment.entity.description || '';
+            const paymentAmount = event.payload.payment.entity.amount || 0;
             
-            console.log('✅ RECURRING PAYMENT ORDER CREATED SUCCESSFULLY!');
-            console.log('💳 Customer charged: ₹' + (event.payload.payment.entity.amount / 100));
-            console.log('📦 Shopify order created for this recurring payment');
+            // Authentication payments usually have small amounts or specific descriptions
+            if (paymentDescription.includes('Authentication') || paymentAmount < 1000 || 
+                (paymentDescription && paymentDescription.trim() === '')) {
+              console.log('🔐 This appears to be an AUTHENTICATION payment - NO Shopify order created');
+              console.log('📅 Shopify order will be created when actual recurring payment is charged');
+              console.log('💳 Authentication payment detected - skipping order creation');
+              console.log('📅 Customer authenticated successfully - waiting for first recurring payment');
+            } else {
+              console.log('💰 This is a RECURRING payment - Creating Shopify order...');
+              console.log('📦 Order will be created for this recurring payment');
+              
+              // Fetch subscription details to get full data
+              const subscriptionResponse = await razorpay.subscriptions.fetch(event.payload.payment.entity.subscription_id);
+              await createShopifyOrder(subscriptionResponse);
+              
+              console.log('✅ RECURRING PAYMENT ORDER CREATED SUCCESSFULLY!');
+              console.log('💳 Customer charged: ₹' + (event.payload.payment.entity.amount / 100));
+              console.log('📦 Shopify order created for this recurring payment');
+            }
           } else if (event.payload.payment.entity && event.payload.payment.entity.notes && 
                      (event.payload.payment.entity.notes.subscription_type === 'mandate' || 
                       event.payload.payment.entity.notes.type === 'mandate')) {
-            console.log('🔗 Found mandate notes - this is a RECURRING payment');
-            console.log('� RECURRING PAYMENT DETECTED - Creating Shopify order...');
-            console.log('📦 Order will be created for this recurring payment');
+            console.log('🔗 Found mandate notes - checking if this is authentication or recurring...');
             
-            // For mandate flow, create order from payment data directly
-            await createShopifyOrderFromPayment(event.payload.payment.entity);
+            // Check payment amount to distinguish authentication vs recurring
+            const paymentAmount = event.payload.payment.entity.amount || 0;
+            const paymentDescription = event.payload.payment.entity.description || '';
             
-            console.log('✅ RECURRING PAYMENT ORDER CREATED SUCCESSFULLY!');
-            console.log('💳 Customer charged: ₹' + (event.payload.payment.entity.amount / 100));
-            console.log('📦 Shopify order created for this recurring payment');
+            // Authentication payments are usually small amounts (₹5, ₹10, etc.)
+            // Recurring payments are the actual subscription amount
+            if (paymentAmount <= 100 || paymentDescription.includes('Authentication') || 
+                (paymentDescription && paymentDescription.trim() === '')) {
+              console.log('🔐 This appears to be an AUTHENTICATION payment - NO Shopify order created');
+              console.log('📅 Shopify order will be created when actual recurring payment is charged');
+              console.log('💳 Authentication payment detected - skipping order creation');
+              console.log('📅 Customer authenticated successfully - waiting for first recurring payment');
+            } else {
+              console.log('💰 This is a RECURRING payment - Creating Shopify order...');
+              console.log('📦 Order will be created for this recurring payment');
+              
+              // For mandate flow, create order from payment data directly
+              await createShopifyOrderFromPayment(event.payload.payment.entity);
+              
+              console.log('✅ RECURRING PAYMENT ORDER CREATED SUCCESSFULLY!');
+              console.log('💳 Customer charged: ₹' + (event.payload.payment.entity.amount / 100));
+              console.log('📦 Shopify order created for this recurring payment');
+            }
           } else {
             console.log('ℹ️ This is a one-time payment - NO Shopify order created');
             console.log('ℹ️ Only recurring payments create Shopify orders');
