@@ -1306,7 +1306,7 @@ app.post('/webhooks/razorpay', express.raw({type: 'application/json'}), async (r
             const paymentAmount = event.payload.payment.entity.amount || 0;
             
             // Authentication payments usually have small amounts or specific descriptions
-            if (paymentDescription.includes('Authentication') || paymentAmount < 1000 || 
+            if (paymentDescription.includes('Authentication') || paymentAmount <= 1000 || 
                 (paymentDescription && paymentDescription.trim() === '')) {
               console.log('🔐 This appears to be an AUTHENTICATION payment - NO Shopify order created');
               console.log('📅 Shopify order will be created when actual recurring payment is charged');
@@ -1334,8 +1334,8 @@ app.post('/webhooks/razorpay', express.raw({type: 'application/json'}), async (r
             const paymentDescription = event.payload.payment.entity.description || '';
             
             // Authentication payments are usually small amounts (₹5, ₹10, etc.)
-            // Recurring payments are the actual subscription amount
-            if (paymentAmount <= 100 || paymentDescription.includes('Authentication') || 
+            // Recurring payments are the actual subscription amount (₹100, ₹500, ₹1000, etc.)
+            if (paymentAmount <= 1000 || paymentDescription.includes('Authentication') || 
                 (paymentDescription && paymentDescription.trim() === '')) {
               console.log('🔐 This appears to be an AUTHENTICATION payment - NO Shopify order created');
               console.log('📅 Shopify order will be created when actual recurring payment is charged');
