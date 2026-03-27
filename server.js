@@ -1291,6 +1291,28 @@ app.post('/webhooks/razorpay', express.raw({type: 'application/json'}), async (r
         
         break;
 
+      case 'subscription.charged':
+        console.log('💰 SUBSCRIPTION CHARGED - Recurring payment detected!');
+        console.log('📋 Subscription charged details:', JSON.stringify(event.payload.subscription.entity, null, 2));
+        console.log('💰 Payment details:', JSON.stringify(event.payload.payment.entity, null, 2));
+        
+        // Create Shopify order for recurring payment
+        try {
+          console.log('💰 RECURRING PAYMENT FROM subscription.charged - Creating Shopify order...');
+          console.log('📦 Order will be created for this recurring payment');
+          
+          // Use subscription data for order creation (has all customer info)
+          await createShopifyOrder(event.payload.subscription.entity);
+          
+          console.log('✅ RECURRING PAYMENT ORDER CREATED SUCCESSFULLY!');
+          console.log('💳 Customer charged: ₹' + (event.payload.payment.entity.amount / 100));
+          console.log('📦 Shopify order created for this recurring payment');
+        } catch (orderError) {
+          console.error('❌ FAILED: Could not create Shopify order for subscription charged:', orderError);
+        }
+        
+        break;
+
       case 'payment.authorized':
         console.log('💳 PAYMENT AUTHORIZED:', event.payload.payment.entity.id);
         console.log('📋 Payment entity details:', JSON.stringify(event.payload.payment.entity, null, 2));
