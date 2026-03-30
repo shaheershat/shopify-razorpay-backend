@@ -422,28 +422,68 @@
                         <div class="variant-section mb-6">
                           <h4 class="variant-title mb-3">{{ variant_title }}</h4>
                           <div class="space-y-2">
-                            {%- for i in (1..3) -%}
-                              {%- assign plan_id = variant.metafields.custom["razorpay_plan_id_" | append: i] -%}
-                              {%- assign frequency = variant.metafields.custom["frequency_" | append: i] -%}
-                              {%- assign description = variant.metafields.custom["description_" | append: i] -%}
-                              {%- if plan_id and frequency and description -%}
-                                <div class="subscription-option" 
-                                     data-plan="{{ frequency }}"
-                                     data-variant-id="{{ variant.id }}"
-                                     data-plan-id="{{ plan_id }}"
-                                     data-price="{{ variant.price }}">
-                                  <div class="flex justify-between items-center">
-                                    <div>
-                                      <h5 class="plan-title">{{ description }}</h5>
-                                      <p class="plan-frequency">{{ frequency | replace: 'months', ' months' | capitalize }}</p>
-                                    </div>
-                                    <div class="text-right">
-                                      <p class="plan-price">{{ variant.price | money }}/month</p>
-                                    </div>
+                            {%- assign plan_id_1 = variant.metafields.custom.razorpay_plan_id_1 -%}
+                            {%- assign frequency_1 = variant.metafields.custom.frequency_1 -%}
+                            {%- assign description_1 = variant.metafields.custom.description_1 -%}
+                            {%- if plan_id_1 and frequency_1 and description_1 -%}
+                              <div class="subscription-option" 
+                                   data-plan="{{ frequency_1 }}"
+                                   data-variant-id="{{ variant.id }}"
+                                   data-plan-id="{{ plan_id_1 }}"
+                                   data-price="{{ variant.price }}">
+                                <div class="flex justify-between items-center">
+                                  <div>
+                                    <h5 class="plan-title">{{ description_1 }}</h5>
+                                    <p class="plan-frequency">{{ frequency_1 | replace: 'months', ' months' | capitalize }}</p>
+                                  </div>
+                                  <div class="text-right">
+                                    <p class="plan-price">{{ variant.price | money }}/month</p>
                                   </div>
                                 </div>
-                              {%- endif -%}
-                            {%- endfor -%}
+                              </div>
+                            {%- endif -%}
+                            
+                            {%- assign plan_id_2 = variant.metafields.custom.razorpay_plan_id_2 -%}
+                            {%- assign frequency_2 = variant.metafields.custom.frequency_2 -%}
+                            {%- assign description_2 = variant.metafields.custom.description_2 -%}
+                            {%- if plan_id_2 and frequency_2 and description_2 -%}
+                              <div class="subscription-option" 
+                                   data-plan="{{ frequency_2 }}"
+                                   data-variant-id="{{ variant.id }}"
+                                   data-plan-id="{{ plan_id_2 }}"
+                                   data-price="{{ variant.price }}">
+                                <div class="flex justify-between items-center">
+                                  <div>
+                                    <h5 class="plan-title">{{ description_2 }}</h5>
+                                    <p class="plan-frequency">{{ frequency_2 | replace: 'months', ' months' | capitalize }}</p>
+                                  </div>
+                                  <div class="text-right">
+                                    <p class="plan-price">{{ variant.price | money }}/month</p>
+                                  </div>
+                                </div>
+                              </div>
+                            {%- endif -%}
+                            
+                            {%- assign plan_id_3 = variant.metafields.custom.razorpay_plan_id_3 -%}
+                            {%- assign frequency_3 = variant.metafields.custom.frequency_3 -%}
+                            {%- assign description_3 = variant.metafields.custom.description_3 -%}
+                            {%- if plan_id_3 and frequency_3 and description_3 -%}
+                              <div class="subscription-option" 
+                                   data-plan="{{ frequency_3 }}"
+                                   data-variant-id="{{ variant.id }}"
+                                   data-plan-id="{{ plan_id_3 }}"
+                                   data-price="{{ variant.price }}">
+                                <div class="flex justify-between items-center">
+                                  <div>
+                                    <h5 class="plan-title">{{ description_3 }}</h5>
+                                    <p class="plan-frequency">{{ frequency_3 | replace: 'months', ' months' | capitalize }}</p>
+                                  </div>
+                                  <div class="text-right">
+                                    <p class="plan-price">{{ variant.price | money }}/month</p>
+                                  </div>
+                                </div>
+                              </div>
+                            {%- endif -%}
                           </div>
                         </div>
                       {%- endfor -%}
