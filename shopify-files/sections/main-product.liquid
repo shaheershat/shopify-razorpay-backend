@@ -417,76 +417,12 @@
                   <div class="subscription-content">
                     <h3 class="section-heading mb-15">Choose Subscription Plan</h3>
                     <div class="space-y-3" id="subscriptionOptions">
-                      {%- for variant in product.variants -%}
-                        {%- assign variant_title = variant.title -%}
-                        <div class="variant-section mb-6">
-                          <h4 class="variant-title mb-3">{{ variant_title }}</h4>
-                          <div class="space-y-2">
-                            {%- assign plan_id_1 = variant.metafields.custom.razorpay_plan_id_1 -%}
-                            {%- assign frequency_1 = variant.metafields.custom.frequency_1 -%}
-                            {%- assign description_1 = variant.metafields.custom.description_1 -%}
-                            {%- if plan_id_1 and frequency_1 and description_1 -%}
-                              <div class="subscription-option" 
-                                   data-plan="{{ frequency_1 }}"
-                                   data-variant-id="{{ variant.id }}"
-                                   data-plan-id="{{ plan_id_1 }}"
-                                   data-price="{{ variant.price }}">
-                                <div class="flex justify-between items-center">
-                                  <div>
-                                    <h5 class="plan-title">{{ description_1 }}</h5>
-                                    <p class="plan-frequency">{{ frequency_1 | replace: 'months', ' months' | capitalize }}</p>
-                                  </div>
-                                  <div class="text-right">
-                                    <p class="plan-price">{{ variant.price | money }}/month</p>
-                                  </div>
-                                </div>
-                              </div>
-                            {%- endif -%}
-                            
-                            {%- assign plan_id_2 = variant.metafields.custom.razorpay_plan_id_2 -%}
-                            {%- assign frequency_2 = variant.metafields.custom.frequency_2 -%}
-                            {%- assign description_2 = variant.metafields.custom.description_2 -%}
-                            {%- if plan_id_2 and frequency_2 and description_2 -%}
-                              <div class="subscription-option" 
-                                   data-plan="{{ frequency_2 }}"
-                                   data-variant-id="{{ variant.id }}"
-                                   data-plan-id="{{ plan_id_2 }}"
-                                   data-price="{{ variant.price }}">
-                                <div class="flex justify-between items-center">
-                                  <div>
-                                    <h5 class="plan-title">{{ description_2 }}</h5>
-                                    <p class="plan-frequency">{{ frequency_2 | replace: 'months', ' months' | capitalize }}</p>
-                                  </div>
-                                  <div class="text-right">
-                                    <p class="plan-price">{{ variant.price | money }}/month</p>
-                                  </div>
-                                </div>
-                              </div>
-                            {%- endif -%}
-                            
-                            {%- assign plan_id_3 = variant.metafields.custom.razorpay_plan_id_3 -%}
-                            {%- assign frequency_3 = variant.metafields.custom.frequency_3 -%}
-                            {%- assign description_3 = variant.metafields.custom.description_3 -%}
-                            {%- if plan_id_3 and frequency_3 and description_3 -%}
-                              <div class="subscription-option" 
-                                   data-plan="{{ frequency_3 }}"
-                                   data-variant-id="{{ variant.id }}"
-                                   data-plan-id="{{ plan_id_3 }}"
-                                   data-price="{{ variant.price }}">
-                                <div class="flex justify-between items-center">
-                                  <div>
-                                    <h5 class="plan-title">{{ description_3 }}</h5>
-                                    <p class="plan-frequency">{{ frequency_3 | replace: 'months', ' months' | capitalize }}</p>
-                                  </div>
-                                  <div class="text-right">
-                                    <p class="plan-price">{{ variant.price | money }}/month</p>
-                                  </div>
-                                </div>
-                              </div>
-                            {%- endif -%}
-                          </div>
-                        </div>
-                      {%- endfor -%}
+                      <!-- Plans will be dynamically loaded based on selected variant -->
+                      <div id="dynamicSubscriptionOptions">
+                        <p style="text-align: center; color: #6b7280; padding: 20px;">
+                          Please select a box option above to see available subscription plans
+                        </p>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -993,16 +929,131 @@
                   customerPhone: {%- if customer -%}'{{ customer.phone }}'{%- else -%}null{%- endif -%}
                 };
 
-                // Re-attach event listeners to subscription options
-                document.addEventListener('DOMContentLoaded', function() {
-                  setTimeout(() => {
-                    document.querySelectorAll('.subscription-option').forEach(option => {
-                      option.addEventListener('click', function() {
-                        document.querySelectorAll('.subscription-option').forEach(opt => opt.classList.remove('selected'));
-                        this.classList.add('selected');
-                      });
+                // Store all variant data for dynamic loading
+                window.variantData = [
+                  {%- for variant in product.variants -%}
+                    {
+                      id: {{ variant.id }},
+                      title: "{{ variant.title | escape }}",
+                      price: {{ variant.price }},
+                      plans: [
+                        {
+                          planId: "{{ variant.metafields.custom.razorpay_plan_id_1 }}",
+                          frequency: "{{ variant.metafields.custom.frequency_1 }}",
+                          description: "{{ variant.metafields.custom.description_1 }}"
+                        },
+                        {
+                          planId: "{{ variant.metafields.custom.razorpay_plan_id_2 }}",
+                          frequency: "{{ variant.metafields.custom.frequency_2 }}",
+                          description: "{{ variant.metafields.custom.description_2 }}"
+                        },
+                        {
+                          planId: "{{ variant.metafields.custom.razorpay_plan_id_3 }}",
+                          frequency: "{{ variant.metafields.custom.frequency_3 }}",
+                          description: "{{ variant.metafields.custom.description_3 }}"
+                        }
+                      ]
+                    }{%- unless forloop.last -%},{%- endunless -%}
+                  {%- endfor -%}
+                ];
+
+                // Function to update subscription plans based on selected tier
+                function updateSubscriptionPlans(tierNumber) {
+                  const container = document.getElementById('dynamicSubscriptionOptions');
+                  
+                  // Map tier to variant (1 -> variant 1, 2 -> variant 2, 3 -> variant 3)
+                  const variantIndex = tierNumber - 1;
+                  const variant = window.variantData[variantIndex];
+                  
+                  if (!variant) {
+                    container.innerHTML = `
+                      <p style="text-align: center; color: #6b7280; padding: 20px;">
+                        No subscription plans available for this tier
+                      </p>
+                    `;
+                    return;
+                  }
+
+                  let html = '';
+                  let hasValidPlans = false;
+                  
+                  // Generate HTML for each plan
+                  variant.plans.forEach((plan, index) => {
+                    if (plan.planId && plan.frequency && plan.description) {
+                      hasValidPlans = true;
+                      const priceInRupees = variant.price / 100;
+                      html += `
+                        <div class="subscription-option" 
+                             data-plan="${plan.frequency}"
+                             data-variant-id="${variant.id}"
+                             data-plan-id="${plan.planId}"
+                             data-price="${variant.price}">
+                          <div class="flex justify-between items-center">
+                            <div>
+                              <h5 class="plan-title">${plan.description}</h5>
+                              <p class="plan-frequency">${plan.frequency.replace('months', ' months').capitalize()}</p>
+                            </div>
+                            <div class="text-right">
+                              <p class="plan-price">₹${priceInRupees}/month</p>
+                            </div>
+                          </div>
+                        </div>
+                      `;
+                    }
+                  });
+
+                  if (!hasValidPlans) {
+                    container.innerHTML = `
+                      <p style="text-align: center; color: #6b7280; padding: 20px;">
+                        No subscription plans configured for ${variant.title}
+                      </p>
+                    `;
+                    return;
+                  }
+
+                  container.innerHTML = html;
+
+                  // Re-attach event listeners to new subscription options
+                  container.querySelectorAll('.subscription-option').forEach(option => {
+                    option.addEventListener('click', function() {
+                      document.querySelectorAll('.subscription-option').forEach(opt => opt.classList.remove('selected'));
+                      this.classList.add('selected');
                     });
+                  });
+                }
+
+                // Function to get current selected tier
+                function getCurrentSelectedTier() {
+                  const selectedTier = document.querySelector('.cbox__tier.cbox--selected');
+                  if (selectedTier) {
+                    return parseInt(selectedTier.dataset.tier);
+                  }
+                  return 2; // Default to tier 2
+                }
+
+                // Update subscription plans when box tier changes
+                function handleTierChange() {
+                  const currentTier = getCurrentSelectedTier();
+                  console.log(`Box tier changed to: ${currentTier}`);
+                  updateSubscriptionPlans(currentTier);
+                }
+
+                // Add event listeners to box tier selection
+                document.addEventListener('DOMContentLoaded', function() {
+                  // Initial load
+                  setTimeout(() => {
+                    handleTierChange();
                   }, 100);
+
+                  // Listen for tier changes
+                  const tierCards = document.querySelectorAll('.cbox__tier');
+                  tierCards.forEach(card => {
+                    card.addEventListener('click', function() {
+                      setTimeout(() => {
+                        handleTierChange();
+                      }, 50);
+                    });
+                  });
                 });
 
                 // Load subscription mandate script (ensure Razorpay is loaded first)
