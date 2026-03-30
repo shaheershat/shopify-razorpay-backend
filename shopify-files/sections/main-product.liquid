@@ -418,25 +418,34 @@
                     <h3 class="section-heading mb-15">Choose Subscription Plan</h3>
                     <div class="space-y-3" id="subscriptionOptions">
                       {%- for variant in product.variants -%}
-                        {%- assign frequency = variant.metafields.custom.frequency -%}
-                        {%- assign plan_id = variant.metafields.custom.razorpay_plan_id -%}
-                        {%- if frequency and plan_id -%}
-                          <div class="subscription-option" 
-                              data-plan="{{ frequency }}"
-                              data-variant-id="{{ variant.id }}"
-                              data-plan-id="{{ plan_id }}"
-                              data-price="{{ variant.price }}">
-                            <div class="flex justify-between items-center">
-                              <div>
-                                <h4 class="plan-title">{{ variant.title }}</h4>
-                                <p class="plan-description">{{ variant.metafields.custom.description }}</p>
-                              </div>
-                              <div class="text-right">
-                                <p class="plan-price">{{ variant.price | money }}/month</p>
-                              </div>
-                            </div>
+                        {%- assign variant_title = variant.title -%}
+                        <div class="variant-section mb-6">
+                          <h4 class="variant-title mb-3">{{ variant_title }}</h4>
+                          <div class="space-y-2">
+                            {%- for i in (1..3) -%}
+                              {%- assign plan_id = variant.metafields.custom["razorpay_plan_id_" | append: i] -%}
+                              {%- assign frequency = variant.metafields.custom["frequency_" | append: i] -%}
+                              {%- assign description = variant.metafields.custom["description_" | append: i] -%}
+                              {%- if plan_id and frequency and description -%}
+                                <div class="subscription-option" 
+                                     data-plan="{{ frequency }}"
+                                     data-variant-id="{{ variant.id }}"
+                                     data-plan-id="{{ plan_id }}"
+                                     data-price="{{ variant.price }}">
+                                  <div class="flex justify-between items-center">
+                                    <div>
+                                      <h5 class="plan-title">{{ description }}</h5>
+                                      <p class="plan-frequency">{{ frequency | replace: 'months', ' months' | capitalize }}</p>
+                                    </div>
+                                    <div class="text-right">
+                                      <p class="plan-price">{{ variant.price | money }}/month</p>
+                                    </div>
+                                  </div>
+                                </div>
+                              {%- endif -%}
+                            {%- endfor -%}
                           </div>
-                        {%- endif -%}
+                        </div>
                       {%- endfor -%}
                     </div>
                   </div>
@@ -845,9 +854,38 @@
       font-size: 20px;
     }
     
-    .plan-price {
-      font-size: 14px;
+    .variant-title {
+      font-size: 18px;
+      font-weight: 600;
+      color: #111827;
+      margin-bottom: 12px;
+      padding-bottom: 8px;
+      border-bottom: 1px solid #e5e7eb;
     }
+    
+    .variant-section {
+      background: #f9fafb;
+      border: 1px solid #e5e7eb;
+      border-radius: 8px;
+      padding: 16px;
+    }
+    
+    .plan-frequency {
+      font-size: 12px;
+      color: #6b7280;
+      margin-bottom: 4px;
+    }
+    
+    .plan-title {
+      font-size: 14px;
+      font-weight: 600;
+      color: #111827;
+      margin-bottom: 2px;
+    }
+  }
+  
+  .plan-price {
+    font-size: 14px;
   }
 </style>
 
@@ -915,27 +953,17 @@
                   customerPhone: {%- if customer -%}'{{ customer.phone }}'{%- else -%}null{%- endif -%}
                 };
 
-                // Load subscription mandate script (ensure Razorpay is loaded first)
-                setTimeout(() => {
-                  if (typeof window.subscriptionProduct === 'undefined') {
-                    const script = document.createElement('script');
-                    script.src = '{{ "subscription-product-mandate.js" | asset_url }}';
-                    script.onload = function() {
-                      console.log('Subscription mandate script loaded');
-                      // Manually initialize since DOMContentLoaded might have already fired
-                      if (typeof SubscriptionProduct !== 'undefined' && typeof window.subscriptionProduct === 'undefined') {
-                        window.subscriptionProduct = new SubscriptionProduct();
-                        console.log('Subscription product manually initialized');
-                      }
-                    };
-                    script.onerror = function() {
-                      console.error('Failed to load subscription mandate script');
-                    };
-                    document.head.appendChild(script);
-                  } else {
-                    console.log('Subscription product already initialized');
-                  }
-                }, 500); // Small delay to ensure Razorpay is fully loaded
+                // Re-attach event listeners to subscription options
+                document.addEventListener('DOMContentLoaded', function() {
+                  setTimeout(() => {
+                    document.querySelectorAll('.subscription-option').forEach(option => {
+                      option.addEventListener('click', function() {
+                        document.querySelectorAll('.subscription-option').forEach(opt => opt.classList.remove('selected'));
+                        this.classList.add('selected');
+                      });
+                    });
+                  }, 100);
+                });
               </script>
             {%- endif -%}
 
