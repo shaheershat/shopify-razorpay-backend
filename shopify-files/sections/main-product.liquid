@@ -964,6 +964,28 @@
                     });
                   }, 100);
                 });
+
+                // Load subscription mandate script (ensure Razorpay is loaded first)
+                setTimeout(() => {
+                  if (typeof window.subscriptionProduct === 'undefined') {
+                    const script = document.createElement('script');
+                    script.src = '{{ "subscription-product-mandate.js" | asset_url }}';
+                    script.onload = function() {
+                      console.log('Subscription mandate script loaded');
+                      // Manually initialize since DOMContentLoaded might have already fired
+                      if (typeof SubscriptionProduct !== 'undefined' && typeof window.subscriptionProduct === 'undefined') {
+                        window.subscriptionProduct = new SubscriptionProduct();
+                        console.log('Subscription product manually initialized');
+                      }
+                    };
+                    script.onerror = function() {
+                      console.error('Failed to load subscription mandate script');
+                    };
+                    document.head.appendChild(script);
+                  } else {
+                    console.log('Subscription product already initialized');
+                  }
+                }, 500); // Small delay to ensure Razorpay is fully loaded
               </script>
             {%- endif -%}
 
