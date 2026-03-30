@@ -417,12 +417,27 @@
                   <div class="subscription-content">
                     <h3 class="section-heading mb-15">Choose Subscription Plan</h3>
                     <div class="space-y-3" id="subscriptionOptions">
-                      <!-- Plans will be dynamically loaded based on selected box tier -->
-                      <div id="dynamicSubscriptionOptions">
-                        <p style="text-align: center; color: #6b7280; padding: 20px;">
-                          Please select a box option above to see available subscription plans
-                        </p>
-                      </div>
+                      {%- for variant in product.variants -%}
+                        {%- assign frequency = variant.metafields.custom.frequency -%}
+                        {%- assign plan_id = variant.metafields.custom.razorpay_plan_id -%}
+                        {%- if frequency and plan_id -%}
+                          <div class="subscription-option" 
+                              data-plan="{{ frequency }}"
+                              data-variant-id="{{ variant.id }}"
+                              data-plan-id="{{ plan_id }}"
+                              data-price="{{ variant.price }}">
+                            <div class="flex justify-between items-center">
+                              <div>
+                                <h4 class="plan-title">{{ variant.title }}</h4>
+                                <p class="plan-description">{{ variant.metafields.custom.description }}</p>
+                              </div>
+                              <div class="text-right">
+                                <p class="plan-price">{{ variant.price | money }}/month</p>
+                              </div>
+                            </div>
+                          </div>
+                        {%- endif -%}
+                      {%- endfor -%}
                     </div>
                   </div>
                 </div>
@@ -899,169 +914,6 @@
                   customerEmail: {%- if customer -%}'{{ customer.email }}'{%- else -%}null{%- endif -%},
                   customerPhone: {%- if customer -%}'{{ customer.phone }}'{%- else -%}null{%- endif -%}
                 };
-
-                // Dynamic subscription plans based on box tier
-                const subscriptionPlans = {
-                  1: [ // Tier 1 (1 Box)
-                    {
-                      title: '3 Months Plan',
-                      description: 'Perfect for trying out our service',
-                      price: 10000, // ₹100 in paise
-                      frequency: '3months',
-                      planId: 'plan_tier1_3months',
-                      variantId: 'tier1_variant_3months'
-                    },
-                    {
-                      title: '6 Months Plan',
-                      description: 'Save 10% with 6-month commitment',
-                      price: 9000, // ₹90 in paise (6×90=₹540 total)
-                      frequency: '6months',
-                      planId: 'plan_tier1_6months',
-                      variantId: 'tier1_variant_6months'
-                    },
-                    {
-                      title: '12 Months Plan',
-                      description: 'Best value with 12-month commitment',
-                      price: 8000, // ₹80 in paise (12×80=₹960 total)
-                      frequency: '12months',
-                      planId: 'plan_tier1_12months',
-                      variantId: 'tier1_variant_12months'
-                    }
-                  ],
-                  2: [ // Tier 2 (2 Boxes)
-                    {
-                      title: '3 Months Plan',
-                      description: 'Double the goodness every month',
-                      price: 18000, // ₹180 in paise
-                      frequency: '3months',
-                      planId: 'plan_tier2_3months',
-                      variantId: 'tier2_variant_3months'
-                    },
-                    {
-                      title: '6 Months Plan',
-                      description: 'Save 11% with 6-month commitment',
-                      price: 16000, // ₹160 in paise (6×160=₹960 total)
-                      frequency: '6months',
-                      planId: 'plan_tier2_6months',
-                      variantId: 'tier2_variant_6months'
-                    },
-                    {
-                      title: '12 Months Plan',
-                      description: 'Best value with 12-month commitment',
-                      price: 14000, // ₹140 in paise (12×140=₹1680 total)
-                      frequency: '12months',
-                      planId: 'plan_tier2_12months',
-                      variantId: 'tier2_variant_12months'
-                    }
-                  ],
-                  3: [ // Tier 3 (3 Boxes)
-                    {
-                      title: '3 Months Plan',
-                      description: 'Maximum goodness every month',
-                      price: 25000, // ₹250 in paise
-                      frequency: '3months',
-                      planId: 'plan_tier3_3months',
-                      variantId: 'tier3_variant_3months'
-                    },
-                    {
-                      title: '6 Months Plan',
-                      description: 'Save 12% with 6-month commitment',
-                      price: 22000, // ₹220 in paise (6×220=₹1320 total)
-                      frequency: '6months',
-                      planId: 'plan_tier3_6months',
-                      variantId: 'tier3_variant_6months'
-                    },
-                    {
-                      title: '12 Months Plan',
-                      description: 'Best value with 12-month commitment',
-                      price: 19000, // ₹190 in paise (12×190=₹2280 total)
-                      frequency: '12months',
-                      planId: 'plan_tier3_12months',
-                      variantId: 'tier3_variant_12months'
-                    }
-                  ]
-                };
-
-                // Function to update subscription plans based on selected tier
-                function updateSubscriptionPlans(tierNumber) {
-                  const plans = subscriptionPlans[tierNumber] || [];
-                  const container = document.getElementById('dynamicSubscriptionOptions');
-                  
-                  if (plans.length === 0) {
-                    container.innerHTML = `
-                      <p style="text-align: center; color: #6b7280; padding: 20px;">
-                        No subscription plans available for this tier
-                      </p>
-                    `;
-                    return;
-                  }
-
-                  let html = '';
-                  plans.forEach((plan, index) => {
-                    const priceInRupees = plan.price / 100;
-                    html += `
-                      <div class="subscription-option" 
-                          data-plan="${plan.frequency}"
-                          data-variant-id="${plan.variantId}"
-                          data-plan-id="${plan.planId}"
-                          data-price="${plan.price}">
-                        <div class="flex justify-between items-center">
-                          <div>
-                            <h4 class="plan-title">${plan.title}</h4>
-                            <p class="plan-description">${plan.description}</p>
-                          </div>
-                          <div class="text-right">
-                            <p class="plan-price">₹${priceInRupees}/month</p>
-                          </div>
-                        </div>
-                      </div>
-                    `;
-                  });
-
-                  container.innerHTML = html;
-
-                  // Re-attach event listeners to new subscription options
-                  container.querySelectorAll('.subscription-option').forEach(option => {
-                    option.addEventListener('click', function() {
-                      document.querySelectorAll('.subscription-option').forEach(opt => opt.classList.remove('selected'));
-                      this.classList.add('selected');
-                    });
-                  });
-                }
-
-                // Function to get current selected tier
-                function getCurrentSelectedTier() {
-                  const selectedTier = document.querySelector('.cbox__tier.cbox--selected');
-                  if (selectedTier) {
-                    return parseInt(selectedTier.dataset.tier);
-                  }
-                  return 2; // Default to tier 2
-                }
-
-                // Update subscription plans when box tier changes
-                function handleTierChange() {
-                  const currentTier = getCurrentSelectedTier();
-                  console.log(`Box tier changed to: ${currentTier}`);
-                  updateSubscriptionPlans(currentTier);
-                }
-
-                // Add event listeners to box tier selection
-                document.addEventListener('DOMContentLoaded', function() {
-                  // Initial load
-                  setTimeout(() => {
-                    handleTierChange();
-                  }, 100);
-
-                  // Listen for tier changes
-                  const tierCards = document.querySelectorAll('.cbox__tier');
-                  tierCards.forEach(card => {
-                    card.addEventListener('click', function() {
-                      setTimeout(() => {
-                        handleTierChange();
-                      }, 50);
-                    });
-                  });
-                });
 
                 // Load subscription mandate script (ensure Razorpay is loaded first)
                 setTimeout(() => {

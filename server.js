@@ -1920,26 +1920,14 @@ async function createShopifyOrder(subscriptionData) {
 function getVariantId(planId) {
   // Map Razorpay plan IDs to Shopify variant IDs
   const planToVariantMap = {
-    // Tier 1 (1 Box) Plans
-    'plan_tier1_3months': 'tier1_variant_3months',
-    'plan_tier1_6months': 'tier1_variant_6months',
-    'plan_tier1_12months': 'tier1_variant_12months',
+    // Your existing plan
+    'plan_SSfug4F5nvQEi5': '46513506189501',
     
-    // Tier 2 (2 Boxes) Plans
-    'plan_tier2_3months': 'tier2_variant_3months',
-    'plan_tier2_6months': 'tier2_variant_6months',
-    'plan_tier2_12months': 'tier2_variant_12months',
-    
-    // Tier 3 (3 Boxes) Plans
-    'plan_tier3_3months': 'tier3_variant_3months',
-    'plan_tier3_6months': 'tier3_variant_6months',
-    'plan_tier3_12months': 'tier3_variant_12months',
-    
-    // Fallback for existing plans
-    'plan_SSfug4F5nvQEi5': '46513506189501' // Your existing plan
+    // New plans will be added as you create them
+    // Just return the plan ID for now - Shopify will handle variant mapping
   };
   
-  return planToVariantMap[planId] || 'default';
+  return planId || 'default';
 }
 
 // Error handling
