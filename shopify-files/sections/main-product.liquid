@@ -417,27 +417,12 @@
                   <div class="subscription-content">
                     <h3 class="section-heading mb-15">Choose Subscription Plan</h3>
                     <div class="space-y-3" id="subscriptionOptions">
-                      {%- for variant in product.variants -%}
-                        {%- assign frequency = variant.metafields.custom.frequency -%}
-                        {%- assign plan_id = variant.metafields.custom.razorpay_plan_id -%}
-                        {%- if frequency and plan_id -%}
-                          <div class="subscription-option" 
-                              data-plan="{{ frequency }}"
-                              data-variant-id="{{ variant.id }}"
-                              data-plan-id="{{ plan_id }}"
-                              data-price="{{ variant.price }}">
-                            <div class="flex justify-between items-center">
-                              <div>
-                                <h4 class="plan-title">{{ variant.title }}</h4>
-                                <p class="plan-description">{{ variant.metafields.custom.description }}</p>
-                              </div>
-                              <div class="text-right">
-                                <p class="plan-price">{{ variant.price | money }}/month</p>
-                              </div>
-                            </div>
-                          </div>
-                        {%- endif -%}
-                      {%- endfor -%}
+                      <!-- Plans will be dynamically loaded based on selected box tier -->
+                      <div id="dynamicSubscriptionOptions">
+                        <p style="text-align: center; color: #6b7280; padding: 20px;">
+                          Please select a box option above to see available subscription plans
+                        </p>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -529,295 +514,327 @@
 
               <!-- Styles for Subscription Integration -->
               <style>
-                /* Purchase Type Toggle */
-                .purchase-type-toggle {
-                  margin-bottom: 20px;
-                }
+  /* Purchase Type Toggle */
+  .purchase-type-toggle {
+    margin-bottom: 20px;
+  }
 
-                .toggle-container {
-                  display: flex;
-                  flex-direction: column;
-                  background: #f3f4f6;
-                  border-radius: 12px;
-                  padding: 4px;
-                  gap: 4px;
-                }
+  .toggle-container {
+    display: flex;
+    flex-direction: column;
+    background: transparent;
+    border-radius: 0;
+    padding: 0;
+    gap: 12px;
+  }
 
-                .toggle-option {
-                  flex: 1;
-                  position: relative;
-                  cursor: pointer;
-                }
+  .toggle-option {
+    flex: 1;
+    position: relative;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 16px;
+    border: 2px solid #e5e7eb;
+    border-radius: 12px;
+    background: white;
+    transition: all 0.3s ease;
+  }
 
-                .toggle-option input[type="radio"] {
-                  position: absolute;
-                  opacity: 0;
-                  width: 100%;
-                  height: 100%;
-                  cursor: pointer;
-                }
+  .toggle-option:hover {
+    border-color: #d1d5db;
+  }
 
-                .toggle-label {
-                  display: block;
-                  padding: 12px 16px;
-                  text-align: center;
-                  border-radius: 8px;
-                  font-size: 14px;
-                  font-weight: 500;
-                  color: #6b7280;
-                  transition: all 0.3s ease;
-                  cursor: pointer;
-                }
+  .toggle-option input[type="radio"] {
+    position: relative;
+    opacity: 1;
+    width: 24px;
+    height: 24px;
+    cursor: pointer;
+    appearance: none;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    background: white;
+    border: 2px solid #999;
+    border-radius: 50%;
+    outline: none;
+    transition: all 0.3s ease;
+    flex-shrink: 0;
+    margin: 0;
+  }
 
-                .toggle-option input[type="radio"]:checked + .toggle-label {
-                  background: white;
-                  color: #111827;
-                  font-weight: 600;
-                  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-                }
+  .toggle-option input[type="radio"]:hover {
+    border-color: #666;
+  }
 
-                /* Purchase Sections */
-                .purchase-section {
-                  margin-bottom: 20px;
-                }
+  .toggle-option input[type="radio"]:checked {
+    border-color: #991b1b;
+    background: white;
+    box-shadow: inset 0 0 0 4px white, inset 0 0 0 6px #991b1b;
+  }
 
-                .price-display {
-                  display: flex;
-                  align-items: center;
-                  gap: 12px;
-                  margin-bottom: 15px;
-                }
+  .toggle-label {
+    display: block;
+    font-size: 16px;
+    font-weight: 500;
+    color: #111827;
+    cursor: pointer;
+    margin: 0;
+    flex: 1;
+  }
 
-                .current-price {
-                  font-size: 24px;
-                  font-weight: 700;
-                  color: #111827;
-                }
+  .toggle-option input[type="radio"]:checked + .toggle-label {
+    font-weight: 600;
+  }
 
-                .compare-price {
-                  font-size: 16px;
-                  color: #6b7280;
-                  text-decoration: line-through;
-                }
+  .toggle-option.selected {
+    border-color: #991b1b;
+    border-width: 2px;
+    background: #fef2f2;
+  }
 
-                .one-time-description {
-                  color: #6b7280;
-                  font-size: 14px;
-                  margin-bottom: 15px;
-                }
+  /* Purchase Sections */
+  .purchase-section {
+    margin-bottom: 20px;
+  }
 
-                /* Subscription Options */
-                .subscription-option {
-                  transition: all 0.3s ease;
-                  background-color: white;
-                  border: 1px solid #e5e7eb;
-                  border-radius: 8px;
-                  padding: 16px;
-                  cursor: pointer;
-                  margin-bottom: 12px;
-                }
+  .price-display {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 15px;
+  }
 
-                .subscription-option:hover {
-                  border-color: #3b82f6;
-                  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
-                  transform: translateY(-2px);
-                }
+  .current-price {
+    font-size: 24px;
+    font-weight: 700;
+    color: #111827;
+  }
 
-                .subscription-option.selected {
-                  background-color: #eff6ff;
-                  border-color: #3b82f6;
-                  border-width: 2px;
-                }
+  .compare-price {
+    font-size: 16px;
+    color: #6b7280;
+    text-decoration: line-through;
+  }
 
-                .plan-title {
-                  font-weight: 600;
-                  color: #111827;
-                  font-size: 14px;
-                  margin-bottom: 4px;
-                }
+  .one-time-description {
+    color: #6b7280;
+    font-size: 14px;
+    margin-bottom: 15px;
+  }
 
-                .plan-description {
-                  font-size: 13px;
-                  color: #6b7280;
-                  margin-bottom: 0;
-                }
+  /* Subscription Options */
+  .subscription-option {
+    transition: all 0.3s ease;
+    background-color: white;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    padding: 16px;
+    cursor: pointer;
+    margin-bottom: 12px;
+  }
 
-                .plan-price {
-                  font-size: 16px;
-                  font-weight: 700;
-                  color: #FF4FA3;
-                  margin: 0;
-                }
+  .subscription-option:hover {
+    border-color: #3b82f6;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+    transform: translateY(-2px);
+  }
 
-                /* Buttons */
-                .btn-subscribe {
-                  background-color: #FF4FA3 !important;
-                  color: white !important;
-                  font-size: 16px;
-                  border-radius: 10px;
-                  font-weight: 600;
-                  transition: all 0.3s ease;
-                  border: none;
-                  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-                  padding: 12px 24px;
-                  cursor: pointer;
-                  width: 100%;
-                }
+  .subscription-option.selected {
+    background-color: #eff6ff;
+    border-color: #3b82f6;
+    border-width: 2px;
+  }
 
-                .btn-subscribe:hover {
-                  background-color: black !important;
-                  color: white;
-                  transform: translateY(-2px);
-                  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-                }
+  .plan-title {
+    font-weight: 600;
+    color: #111827;
+    font-size: 14px;
+    margin-bottom: 4px;
+  }
 
-                /* Modal Styles */
-                .modal-overlay {
-                  display: none;
-                  position: fixed;
-                  top: 0;
-                  left: 0;
-                  right: 0;
-                  bottom: 0;
-                  background-color: rgba(0, 0, 0, 0.5);
-                  z-index: 999;
-                  justify-content: center;
-                  align-items: center;
-                }
+  .plan-description {
+    font-size: 13px;
+    color: #6b7280;
+    margin-bottom: 0;
+  }
 
-                .modal-overlay.active {
-                  display: flex;
-                }
+  .plan-price {
+    font-size: 16px;
+    font-weight: 700;
+    color: #FF4FA3;
+    margin: 0;
+  }
 
-                .modal-content {
-                  background-color: white;
-                  border-radius: 12px;
-                  padding: 2rem;
-                  max-width: 500px;
-                  width: 90%;
-                  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
-                  animation: slideUp 0.3s ease;
-                  position: relative;
-                }
+  /* Buttons */
+  .btn-subscribe {
+    background-color: #FF4FA3 !important;
+    color: white !important;
+    font-size: 16px;
+    border-radius: 10px;
+    font-weight: 600;
+    transition: all 0.3s ease;
+    border: none;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    padding: 12px 24px;
+    cursor: pointer;
+    width: 100%;
+  }
 
-                @keyframes slideUp {
-                  from {
-                    transform: translateY(20px);
-                    opacity: 0;
-                  }
-                  to {
-                    transform: translateY(0);
-                    opacity: 1;
-                  }
-                }
+  .btn-subscribe:hover {
+    background-color: black !important;
+    color: white;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  }
 
-                .modal-header {
-                  font-size: 1.5rem;
-                  font-weight: 700;
-                  color: #111827;
-                  margin-bottom: 1.5rem;
-                }
+  /* Modal Styles */
+  .modal-overlay {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(0, 0, 0, 0.5);
+    z-index: 999;
+    justify-content: center;
+    align-items: center;
+  }
 
-                .modal-close {
-                  position: absolute;
-                  top: 1rem;
-                  right: 1rem;
-                  background: none;
-                  border: none;
-                  font-size: 1.5rem;
-                  cursor: pointer;
-                  color: #6b7280;
-                  transition: color 0.3s ease;
-                }
+  .modal-overlay.active {
+    display: flex;
+  }
 
-                .modal-close:hover {
-                  color: #111827;
-                }
+  .modal-content {
+    background-color: white;
+    border-radius: 12px;
+    padding: 2rem;
+    max-width: 500px;
+    width: 90%;
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+    animation: slideUp 0.3s ease;
+    position: relative;
+  }
 
-                .section-heading {
-                  font-size: 14px;
-                  font-weight: 600;
-                  color: #111827;
-                  margin-bottom: 12px;
-                }
+  @keyframes slideUp {
+    from {
+      transform: translateY(20px);
+      opacity: 0;
+    }
+    to {
+      transform: translateY(0);
+      opacity: 1;
+    }
+  }
 
-                .input-field {
-                  font-size: 14px;
-                  transition: all 0.3s ease;
-                  border-color: #d1d5db;
-                  color: #111827;
-                  border: 1px solid #d1d5db;
-                  padding: 10px;
-                  border-radius: 8px;
-                  width: 100%;
-                }
+  .modal-header {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: #111827;
+    margin-bottom: 1.5rem;
+  }
 
-                .input-field:focus {
-                  outline: none;
-                  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
-                  border-width: 2px;
-                }
+  .modal-close {
+    position: absolute;
+    top: 1rem;
+    right: 1rem;
+    background: none;
+    border: none;
+    font-size: 1.5rem;
+    cursor: pointer;
+    color: #6b7280;
+    transition: color 0.3s ease;
+  }
 
-                .space-y-3 > * + * {
-                  margin-top: 12px;
-                }
+  .modal-close:hover {
+    color: #111827;
+  }
 
-                .flex {
-                  display: flex;
-                }
+  .section-heading {
+    font-size: 14px;
+    font-weight: 600;
+    color: #111827;
+    margin-bottom: 12px;
+  }
 
-                .justify-between {
-                  justify-content: space-between;
-                }
+  .input-field {
+    font-size: 14px;
+    transition: all 0.3s ease;
+    border-color: #d1d5db;
+    color: #111827;
+    border: 1px solid #d1d5db;
+    padding: 10px;
+    border-radius: 8px;
+    width: 100%;
+  }
 
-                .items-center {
-                  align-items: center;
-                }
+  .input-field:focus {
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+    border-width: 2px;
+  }
 
-                .grid {
-                  display: grid;
-                }
+  .space-y-3 > * + * {
+    margin-top: 12px;
+  }
 
-                .grid-cols-1 {
-                  grid-template-columns: repeat(1, minmax(0, 1fr));
-                }
+  .flex {
+    display: flex;
+  }
 
-                .grid-cols-2 {
-                  grid-template-columns: repeat(2, minmax(0, 1fr));
-                }
+  .justify-between {
+    justify-content: space-between;
+  }
 
-                .grid-cols-3 {
-                  grid-template-columns: repeat(3, minmax(0, 1fr));
-                }
+  .items-center {
+    align-items: center;
+  }
 
-                .gap-3 {
-                  gap: 12px;
-                }
+  .grid {
+    display: grid;
+  }
 
-                .w-full {
-                  width: 100%;
-                }
+  .grid-cols-1 {
+    grid-template-columns: repeat(1, minmax(0, 1fr));
+  }
 
-                .text-right {
-                  text-align: right;
-                }
+  .grid-cols-2 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 
-                /* Mobile Responsive */
-                @media (max-width: 768px) {
-                  .toggle-label {
-                    padding: 10px 12px;
-                    font-size: 13px;
-                  }
-                  
-                  .current-price {
-                    font-size: 20px;
-                  }
-                  
-                  .plan-price {
-                    font-size: 14px;
-                  }
-                }
-              </style>
+  .grid-cols-3 {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .gap-3 {
+    gap: 12px;
+  }
+
+  .w-full {
+    width: 100%;
+  }
+
+  .text-right {
+    text-align: right;
+  }
+
+  /* Mobile Responsive */
+  @media (max-width: 768px) {
+    .toggle-label {
+      font-size: 13px;
+    }
+    
+    .current-price {
+      font-size: 20px;
+    }
+    
+    .plan-price {
+      font-size: 14px;
+    }
+  }
+</style>
 
               <!-- JavaScript for Subscription Integration -->
               <script>
@@ -882,6 +899,169 @@
                   customerEmail: {%- if customer -%}'{{ customer.email }}'{%- else -%}null{%- endif -%},
                   customerPhone: {%- if customer -%}'{{ customer.phone }}'{%- else -%}null{%- endif -%}
                 };
+
+                // Dynamic subscription plans based on box tier
+                const subscriptionPlans = {
+                  1: [ // Tier 1 (1 Box)
+                    {
+                      title: '1 Month Plan',
+                      description: 'Perfect for trying out our service',
+                      price: 10000, // ₹100 in paise
+                      frequency: '1month',
+                      planId: 'plan_tier1_1month',
+                      variantId: 'tier1_variant_1month'
+                    },
+                    {
+                      title: '3 Months Plan',
+                      description: 'Save 10% with 3-month commitment',
+                      price: 9000, // ₹90 in paise (3×90=₹270 total)
+                      frequency: '3months',
+                      planId: 'plan_tier1_3months',
+                      variantId: 'tier1_variant_3months'
+                    },
+                    {
+                      title: '6 Months Plan',
+                      description: 'Best value with 6-month commitment',
+                      price: 8000, // ₹80 in paise (6×80=₹480 total)
+                      frequency: '6months',
+                      planId: 'plan_tier1_6months',
+                      variantId: 'tier1_variant_6months'
+                    }
+                  ],
+                  2: [ // Tier 2 (2 Boxes)
+                    {
+                      title: '1 Month Plan',
+                      description: 'Double the goodness every month',
+                      price: 18000, // ₹180 in paise
+                      frequency: '1month',
+                      planId: 'plan_tier2_1month',
+                      variantId: 'tier2_variant_1month'
+                    },
+                    {
+                      title: '3 Months Plan',
+                      description: 'Save 11% with 3-month commitment',
+                      price: 16000, // ₹160 in paise (3×160=₹480 total)
+                      frequency: '3months',
+                      planId: 'plan_tier2_3months',
+                      variantId: 'tier2_variant_3months'
+                    },
+                    {
+                      title: '6 Months Plan',
+                      description: 'Best value with 6-month commitment',
+                      price: 14000, // ₹140 in paise (6×140=₹840 total)
+                      frequency: '6months',
+                      planId: 'plan_tier2_6months',
+                      variantId: 'tier2_variant_6months'
+                    }
+                  ],
+                  3: [ // Tier 3 (3 Boxes)
+                    {
+                      title: '1 Month Plan',
+                      description: 'Maximum goodness every month',
+                      price: 25000, // ₹250 in paise
+                      frequency: '1month',
+                      planId: 'plan_tier3_1month',
+                      variantId: 'tier3_variant_1month'
+                    },
+                    {
+                      title: '3 Months Plan',
+                      description: 'Save 12% with 3-month commitment',
+                      price: 22000, // ₹220 in paise (3×220=₹660 total)
+                      frequency: '3months',
+                      planId: 'plan_tier3_3months',
+                      variantId: 'tier3_variant_3months'
+                    },
+                    {
+                      title: '6 Months Plan',
+                      description: 'Best value with 6-month commitment',
+                      price: 19000, // ₹190 in paise (6×190=₹1140 total)
+                      frequency: '6months',
+                      planId: 'plan_tier3_6months',
+                      variantId: 'tier3_variant_6months'
+                    }
+                  ]
+                };
+
+                // Function to update subscription plans based on selected tier
+                function updateSubscriptionPlans(tierNumber) {
+                  const plans = subscriptionPlans[tierNumber] || [];
+                  const container = document.getElementById('dynamicSubscriptionOptions');
+                  
+                  if (plans.length === 0) {
+                    container.innerHTML = `
+                      <p style="text-align: center; color: #6b7280; padding: 20px;">
+                        No subscription plans available for this tier
+                      </p>
+                    `;
+                    return;
+                  }
+
+                  let html = '';
+                  plans.forEach((plan, index) => {
+                    const priceInRupees = plan.price / 100;
+                    html += `
+                      <div class="subscription-option" 
+                          data-plan="${plan.frequency}"
+                          data-variant-id="${plan.variantId}"
+                          data-plan-id="${plan.planId}"
+                          data-price="${plan.price}">
+                        <div class="flex justify-between items-center">
+                          <div>
+                            <h4 class="plan-title">${plan.title}</h4>
+                            <p class="plan-description">${plan.description}</p>
+                          </div>
+                          <div class="text-right">
+                            <p class="plan-price">₹${priceInRupees}/month</p>
+                          </div>
+                        </div>
+                      </div>
+                    `;
+                  });
+
+                  container.innerHTML = html;
+
+                  // Re-attach event listeners to new subscription options
+                  container.querySelectorAll('.subscription-option').forEach(option => {
+                    option.addEventListener('click', function() {
+                      document.querySelectorAll('.subscription-option').forEach(opt => opt.classList.remove('selected'));
+                      this.classList.add('selected');
+                    });
+                  });
+                }
+
+                // Function to get current selected tier
+                function getCurrentSelectedTier() {
+                  const selectedTier = document.querySelector('.cbox__tier.cbox--selected');
+                  if (selectedTier) {
+                    return parseInt(selectedTier.dataset.tier);
+                  }
+                  return 2; // Default to tier 2
+                }
+
+                // Update subscription plans when box tier changes
+                function handleTierChange() {
+                  const currentTier = getCurrentSelectedTier();
+                  console.log(`Box tier changed to: ${currentTier}`);
+                  updateSubscriptionPlans(currentTier);
+                }
+
+                // Add event listeners to box tier selection
+                document.addEventListener('DOMContentLoaded', function() {
+                  // Initial load
+                  setTimeout(() => {
+                    handleTierChange();
+                  }, 100);
+
+                  // Listen for tier changes
+                  const tierCards = document.querySelectorAll('.cbox__tier');
+                  tierCards.forEach(card => {
+                    card.addEventListener('click', function() {
+                      setTimeout(() => {
+                        handleTierChange();
+                      }, 50);
+                    });
+                  });
+                });
 
                 // Load subscription mandate script (ensure Razorpay is loaded first)
                 setTimeout(() => {
@@ -4790,7 +4970,7 @@
 },
 {
   "type": "subscription",
-  "name": "🔄 Subscription Purchase Options",
+  "name": "🔄 Subscription ",
   "limit": 1,
   "settings": [
     {

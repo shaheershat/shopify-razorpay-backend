@@ -1916,20 +1916,30 @@ async function createShopifyOrder(subscriptionData) {
   }
 }
 
-// Helper function to get variant ID from product ID
-function getVariantId(productId) {
-  // Use the actual variant ID passed from frontend
-  if (productId && productId.toString().length > 10) {
-    return productId; // It's already a variant ID
-  }
-  
-  // Fallback to product ID mapping
-  const variantMap = {
-    'product1': '1234567890123',
-    'product2': '1234567890124',
-    'product3': '1234567890125'
+// Helper function to get variant ID based on plan ID
+function getVariantId(planId) {
+  // Map Razorpay plan IDs to Shopify variant IDs
+  const planToVariantMap = {
+    // Tier 1 (1 Box) Plans
+    'plan_tier1_1month': 'tier1_variant_1month',
+    'plan_tier1_3months': 'tier1_variant_3months', 
+    'plan_tier1_6months': 'tier1_variant_6months',
+    
+    // Tier 2 (2 Boxes) Plans
+    'plan_tier2_1month': 'tier2_variant_1month',
+    'plan_tier2_3months': 'tier2_variant_3months',
+    'plan_tier2_6months': 'tier2_variant_6months',
+    
+    // Tier 3 (3 Boxes) Plans
+    'plan_tier3_1month': 'tier3_variant_1month',
+    'plan_tier3_3months': 'tier3_variant_3months',
+    'plan_tier3_6months': 'tier3_variant_6months',
+    
+    // Fallback for existing plans
+    'plan_SSfug4F5nvQEi5': '46513506189501' // Your existing plan
   };
-  return variantMap[productId] || '1234567890123';
+  
+  return planToVariantMap[planId] || 'default';
 }
 
 // Error handling
