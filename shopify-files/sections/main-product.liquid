@@ -957,13 +957,21 @@
                   {%- endfor -%}
                 ];
 
+                // Debug: Log variant data to console
+                console.log('🔍 All Variant Data:', window.variantData);
+
                 // Function to update subscription plans based on selected tier
                 function updateSubscriptionPlans(tierNumber) {
                   const container = document.getElementById('dynamicSubscriptionOptions');
                   
+                  // Debug: Log what tier we're looking for
+                  console.log(`🎯 Looking for tier: ${tierNumber}`);
+                  
                   // Map tier to variant (1 -> variant 1, 2 -> variant 2, 3 -> variant 3)
                   const variantIndex = tierNumber - 1;
                   const variant = window.variantData[variantIndex];
+                  
+                  console.log(`🔍 Found variant:`, variant);
                   
                   if (!variant) {
                     container.innerHTML = `
@@ -979,6 +987,7 @@
                   
                   // Generate HTML for each plan
                   variant.plans.forEach((plan, index) => {
+                    console.log(`📋 Plan ${index + 1}:`, plan);
                     if (plan.planId && plan.frequency && plan.description) {
                       hasValidPlans = true;
                       const priceInRupees = variant.price / 100;
@@ -991,7 +1000,7 @@
                           <div class="flex justify-between items-center">
                             <div>
                               <h5 class="plan-title">${plan.description}</h5>
-                              <p class="plan-frequency">${plan.frequency.replace('months', ' months').capitalize()}</p>
+                              <p class="plan-frequency">${plan.frequency.replace('months', ' months').replace(/^./, char => char.toUpperCase())}</p>
                             </div>
                             <div class="text-right">
                               <p class="plan-price">₹${priceInRupees}/month</p>
@@ -999,6 +1008,12 @@
                           </div>
                         </div>
                       `;
+                    } else {
+                      console.log(`❌ Plan ${index + 1} missing data:`, {
+                        planId: !!plan.planId,
+                        frequency: !!plan.frequency,
+                        description: !!plan.description
+                      });
                     }
                   });
 
