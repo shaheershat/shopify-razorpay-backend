@@ -29,10 +29,24 @@ const app = express();
 app.use(express.json());
 app.use(cors());
 
-// Initialize Razorpay
+// Enable CORS for all routes
+app.use((req, res, next) => {
+  res.header('Access-Control-Allow-Origin', '*');
+  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+  res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
+  res.header('Access-Control-Allow-Credentials', 'true');
+  
+  if (req.method === 'OPTIONS') {
+    res.sendStatus(200);
+  } else {
+    next();
+  }
+});
+
+// Initialize Razorpay instance
 const razorpay = new Razorpay({
   key_id: process.env.RAZORPAY_KEY_ID,
-  key_secret: process.env.RAZORPAY_SECRET_KEY
+  secret: process.env.RAZORPAY_SECRET_KEY
 });
 
 // ============= ROUTES =============
@@ -1880,7 +1894,7 @@ async function createShopifyOrderFromPayment(paymentData) {
 // Shopify Order Creation Function
 async function createShopifyOrder(subscriptionData) {
   try {
-    const shopifyUrl = `https://${process.env.SHOPIFY_STORE_NAME}/admin/api/2023-10/orders.json`;
+    const shopifyUrl = `https://${process.env.SHOPIFY_STORE_NAME}.myshopify.com/admin/api/2023-10/orders.json`;
     
     console.log('🚀 Starting Shopify order creation process...');
     console.log('📋 Subscription data received:', {
@@ -1944,32 +1958,6 @@ async function createShopifyOrder(subscriptionData) {
       lastName,
       address,
       city,
-      state,
-      postalCode,
-      country
-    });
-    
-    // Get plan details from Razorpay to get correct amount
-    let planAmount = 0;
-    try {
-      console.log('💰 Fetching plan details for:', subscriptionData.plan_id);
-      const plan = await razorpay.plans.fetch(subscriptionData.plan_id);
-      planAmount = plan.item.amount; // Amount in paise
-      console.log('✅ Plan amount fetched successfully:', {
-        planId: plan.id,
-        planName: plan.item.name,
-        amount: planAmount,
-        amountInRupees: (planAmount / 100).toFixed(2)
-      });
-    } catch (planError) {
-      console.log('⚠️ Could not fetch plan details, using fallback amount');
-      planAmount = subscriptionData.charge_at || 1000; // Fallback to 10 rupees
-      console.log('🔄 Using fallback amount:', planAmount);
-    }
-    
-    // Build Shopify order data (using original logic)
-    const orderData = {
-      order: {
         email: customerEmail,
         phone: customerPhone,
         financial_status: 'paid',
@@ -2085,6 +2073,58 @@ function getVariantId(planId) {
   
   return planId || 'default';
 }
+
+// Test Order Creation Endpoint
+app.post('/api/test-order', async (req, res) => {
+  try {
+    console.log('🧪 Creating test order...');
+    
+    const testOrderData = {
+      id: 'test_sub_' + Date.now(),
+      plan_id: 'plan_SSfug4F5nvQEi5', // Your existing plan
+      email: 'test@example.com',
+      phone: '+919876543210',
+      notes: {
+        // Customer info
+        name: 'Test Customer',
+        email: 'test@example.com',
+        phone: '+919876543210',
+        addr: '123 Test Street',
+        city: 'Mumbai',
+        state: 'Maharashtra',
+        pin: '400001',
+        
+        // Product info
+        product_id: '46513506189501',
+        product_title: 'Test Subscription',
+        product_description: 'Test subscription plan',
+        frequency: '3months',
+        
+        // ENHANCED: Box and items selection from cart
+        boxes: 'Two Boxes',
+        items: '2 M pads, 6 L pads, 4 XL pads',
+        selected_plan: '3 Months Plan'
+      }
+    };
+    
+    // Create Shopify order
+    const shopifyOrder = await createShopifyOrder(testOrderData);
+    
+    res.json({
+      success: true,
+      message: 'Test order created successfully',
+      shopify_order: shopifyOrder,
+      test_data: testOrderData
+    });
+    
+  } catch (error) {
+    console.error('❌ Test order creation failed:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
 
 // Error handling
 app.use((err, req, res, next) => {
