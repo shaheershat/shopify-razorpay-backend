@@ -2332,7 +2332,33 @@ function getVariantId(planId) {
   return planId || 'default';
 }
 
-// Test Order Creation Endpoint
+// Simple Test Endpoint (no external APIs)
+  app.post('/api/simple-test', (req, res) => {
+    try {
+      console.log('🧪 Simple test endpoint called');
+      
+      const testData = {
+        timestamp: new Date().toISOString(),
+        message: 'Simple test successful!',
+        environment: process.env.NODE_ENV || 'development',
+        port: process.env.PORT || '3000'
+      };
+      
+      res.json({
+        success: true,
+        data: testData
+      });
+      
+    } catch (error) {
+      console.error('❌ Simple test failed:', error);
+      res.status(500).json({
+        success: false,
+        error: error.message
+      });
+    }
+  });
+
+  // Test Order Creation Endpoint
   app.post('/api/test-order', async (req, res) => {
     try {
       console.log('🧪 Creating test order...');
