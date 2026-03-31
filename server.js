@@ -30,7 +30,7 @@ async function startServer() {
   const app = express();
   app.use(express.json());
   app.use(cors());
-
+}
   // Enable CORS for all routes
   app.use((req, res, next) => {
     res.header('Access-Control-Allow-Origin', '*');
@@ -428,6 +428,9 @@ app.get('/api/customer-subscriptions-enhanced', async (req, res) => {
       });
     }
     
+    const normalizedCustomerPhone = normalizePhone(customer_phone);
+    console.log('Normalized customer phone:', normalizedCustomerPhone);
+    
     try {
       const subscriptions = await razorpay.subscriptions.all();
       
@@ -470,7 +473,7 @@ app.get('/api/customer-subscriptions-enhanced', async (req, res) => {
 
       // Format subscription data with safety checks and enhanced details
       const formattedSubscriptions = [];
-      matchingSubscriptions.forEach(sub => {
+      for (const sub of matchingSubscriptions) {
         try {
           const plan = await razorpay.plans.fetch(sub.plan_id);
           const amount = plan.item.amount; // Amount in paise
@@ -560,7 +563,7 @@ app.get('/api/customer-subscriptions-enhanced', async (req, res) => {
             shopify_orders: []
           });
         }
-      });
+      }
       
       res.json({
         success: true,
@@ -580,15 +583,24 @@ app.get('/api/customer-subscriptions-enhanced', async (req, res) => {
         }
       });
       
+    } catch (razorpayError) {
+      console.error('Razorpay API error:', razorpayError);
+      res.status(500).json({ 
+        success: false, 
+        error: 'Failed to fetch subscriptions from Razorpay' 
+      });
+    }
+      
     } catch (error) {
       console.error('Error fetching enhanced subscriptions:', error);
       res.status(400).json({ 
         success: false, 
         error: error.message 
       });
-    }
+    
   }
 });
+
 
 // Get Customer Subscriptions by Razorpay Customer ID
 app.post('/api/customer-subscriptions-by-customer-id', async (req, res) => {
@@ -1960,6 +1972,13 @@ async function createShopifyOrder(subscriptionData) {
       lastName,
       address,
       city,
+      state,
+      postalCode,
+      country
+    });
+    
+    const orderData = {
+      order: {
         email: customerEmail,
         phone: customerPhone,
         financial_status: 'paid',
