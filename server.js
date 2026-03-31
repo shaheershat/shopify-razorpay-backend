@@ -206,7 +206,10 @@ async function startServer() {
         headers: {
           'X-Shopify-Access-Token': process.env.SHOPIFY_ACCESS_TOKEN,
           'Content-Type': 'application/json'
-        }
+        },
+        httpsAgent: new (require('https').Agent)({
+          rejectUnauthorized: false // Allow self-signed certificates
+        })
       });
 
       console.log('✅ SUCCESS: Shopify order created successfully!');
