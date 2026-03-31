@@ -51,6 +51,216 @@ async function startServer() {
     secret: process.env.RAZORPAY_SECRET_KEY
   });
 
+  // Shopify Order Creation Function
+  async function createShopifyOrder(subscriptionData) {
+    try {
+      const shopifyUrl = `https://${process.env.SHOPIFY_STORE_NAME}.myshopify.com/admin/api/2023-10/orders.json`;
+      
+      console.log('🚀 Starting Shopify order creation process...');
+      console.log('📋 Subscription data received:', {
+        subscriptionId: subscriptionData.id,
+        planId: subscriptionData.plan_id,
+        status: subscriptionData.status,
+        hasNotes: !!subscriptionData.notes,
+        notesCount: Object.keys(subscriptionData.notes || {}).length
+      });
+      
+      // First, fetch plan details to get correct amount
+      let planAmount = 0;
+      try {
+        console.log('💰 Fetching plan details for:', subscriptionData.plan_id);
+        const plan = await razorpay.plans.fetch(subscriptionData.plan_id);
+        planAmount = plan.item.amount; // Amount in paise
+        console.log('✅ Plan amount fetched successfully:', {
+          planId: plan.id,
+          planName: plan.item.name,
+          amount: planAmount,
+          amountInRupees: (planAmount / 100).toFixed(2)
+        });
+      } catch (planError) {
+        console.log('⚠️ Could not fetch plan details, using fallback amount:', planError.message);
+        planAmount = subscriptionData.amount || 1500; // Use amount from frontend or fallback
+        console.log('🔄 Using fallback amount:', planAmount);
+      }
+      
+      // Parse subscription data from notes (using original logic)
+      let subscriptionInfo = {};
+      try {
+        // Extract from notes (original format)
+        subscriptionInfo = {
+          customer_name: subscriptionData.notes?.name || subscriptionData.notes?.customer_name || 'Customer Name',
+          email: subscriptionData.notes?.email || subscriptionData.email,
+          phone: subscriptionData.notes?.phone || subscriptionData.phone,
+          address: subscriptionData.notes?.addr || subscriptionData.notes?.address || 'Default Address',
+          city: subscriptionData.notes?.city || 'Default City',
+          state: subscriptionData.notes?.state || 'Default State',
+          postal_code: subscriptionData.notes?.pin || subscriptionData.notes?.postal_code || '000000',
+          product_id: subscriptionData.notes?.pid || subscriptionData.notes?.product_id || subscriptionData.product_id,
+          product_title: subscriptionData.notes?.title || subscriptionData.notes?.product_title || 'Subscription',
+          frequency: subscriptionData.notes?.freq || subscriptionData.notes?.frequency || '1',
+          boxes: subscriptionData.notes?.boxes || subscriptionData.notes?.box_selection || 'Not specified',
+          items: subscriptionData.notes?.items || subscriptionData.notes?.pad_selection || 'Not specified',
+          selected_plan: subscriptionData.notes?.selected_plan || subscriptionData.notes?.plan_description || 'Not specified'
+        };
+      } catch (e) {
+        console.log('Could not parse subscription data from notes, using fallback');
+      }
+      
+      // Get customer info from parsed data or fallback to notes
+      const customerEmail = subscriptionInfo.email || subscriptionData.email;
+      const customerPhone = subscriptionInfo.phone || subscriptionData.phone;
+      const variantId = subscriptionInfo.product_id || subscriptionData.product_id;
+      
+      // Extract address information from parsed data
+      const customerName = subscriptionInfo.customer_name || 'Customer Name';
+      const firstName = customerName.split(' ')[0] || 'Customer';
+      const lastName = customerName.split(' ').slice(1).join(' ') || 'Name';
+      const address = subscriptionInfo.address || 'Default Address';
+      const addressLine2 = subscriptionData.notes?.address_line_2 || ''; // Get from notes if available
+      const city = subscriptionInfo.city || 'Default City';
+      const state = subscriptionInfo.state || 'Default State';
+      const postalCode = subscriptionInfo.postal_code || '000000';
+      const country = subscriptionData.notes?.country || 'IN'; // Get from notes if available
+      
+      console.log('👤 Customer info extracted:', {
+        email: customerEmail,
+        phone: customerPhone,
+        variantId: variantId
+      });
+      
+      console.log('🏠 Address information extracted:', {
+        customerName,
+        firstName,
+        lastName,
+        address,
+        city,
+        state,
+        postalCode,
+        country
+      });
+      
+      // Build Shopify order data
+      const orderData = {
+        order: {
+          email: customerEmail,
+          phone: customerPhone,
+          financial_status: 'paid',
+          line_items: [
+            {
+              variant_id: getVariantId(variantId),
+              quantity: 1,
+              title: `${subscriptionInfo.product_title || 'Subscription'} - ${subscriptionData.plan_id}`,
+              price: (planAmount / 100).toString(), // Convert from paise to rupees
+              taxable: true
+            }
+          ],
+          note: `📦 Box Selection: ${subscriptionInfo.boxes || 'Not specified'}
+📋 Items Selected: ${subscriptionInfo.items || 'Not specified'}
+📅 Subscription Plan: ${subscriptionInfo.selected_plan || 'Not specified'}
+📋 Frequency: ${subscriptionInfo.frequency || 'Not specified'}
+💰 Payment ID: ${subscriptionData.id}
+👤 Customer: ${customerName}
+📍 Address: ${address}, ${city}, ${state} ${postalCode}`,
+          tags: ['subscription', 'razorpay', 'test-order'],
+          shipping_address: {
+            first_name: firstName,
+            last_name: lastName,
+            address1: address,
+            address2: addressLine2,
+            city: city,
+            province: state,
+            country: country,
+            zip: postalCode
+          },
+          billing_address: {
+            first_name: firstName,
+            last_name: lastName,
+            address1: address,
+            address2: addressLine2,
+            city: city,
+            province: state,
+            country: country,
+            zip: postalCode
+          },
+          customer: {
+            first_name: firstName,
+            last_name: lastName,
+            email: customerEmail,
+            phone: customerPhone
+          }
+        }
+      };
+
+      console.log('🛒 Shopify order data prepared:', {
+        customerEmail,
+        customerName,
+        variantId,
+        totalAmount: (planAmount / 100).toString(),
+        shippingAddress: `${address}, ${city}, ${state} ${postalCode}`,
+        lineItemsCount: orderData.order.line_items.length
+      });
+
+      console.log('📤 Sending request to Shopify API...');
+      
+      const response = await axios.post(shopifyUrl, orderData, {
+        headers: {
+          'X-Shopify-Access-Token': process.env.SHOPIFY_ACCESS_TOKEN,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      console.log('✅ SUCCESS: Shopify order created successfully!');
+      console.log('📦 Order details:', {
+        orderId: response.data.order.id,
+        orderNumber: response.data.order.order_number,
+        customerEmail,
+        customerName,
+        totalAmount: (planAmount / 100).toString(),
+        address: `${address}, ${city}, ${state} ${postalCode}`,
+        financialStatus: response.data.order.financial_status,
+        fulfillmentStatus: response.data.order.fulfillment_status
+      });
+      
+      console.log('🔗 Shopify Order Link:', `https://${process.env.SHOPIFY_STORE_NAME}/admin/orders/${response.data.order.id}`);
+      
+      return response.data.order;
+
+    } catch (error) {
+      console.error('❌ FAILED: Shopify order creation failed!');
+      console.error('🔥 Error details:', {
+        message: error.message,
+        status: error.response?.status,
+        statusText: error.response?.statusText,
+        shopifyError: error.response?.data,
+        subscriptionId: subscriptionData.id,
+        customerEmail: subscriptionData.notes?.customer_email
+      });
+      
+      if (error.response?.data) {
+        console.error('📋 Shopify API Error Response:', error.response.data);
+      }
+      
+      throw error;
+    }
+  }
+
+  // Helper function to get variant ID
+  function getVariantId(planId) {
+    const variantMap = {
+      // Map your plan IDs to variant IDs
+      '46513506222269': '46513506222269',
+      '46513506189501': '46513506189501',
+      
+      // Your existing plan
+      'plan_SSfug4F5nvQEi5': '46513506189501',
+      
+      // New plans will be added as you create them
+      // Just return the plan ID for now - Shopify will handle variant mapping
+    };
+    
+    return variantMap[planId] || 'default';
+  }
+
   // ============= ROUTES =============
 
   // Health check
