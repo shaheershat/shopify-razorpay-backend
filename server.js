@@ -80,6 +80,9 @@ app.post('/api/create-subscription-direct', async (req, res) => {
       product_title,
       product_description,
       amount, // This will be in rupees from frontend
+      // ENHANCED: Box and items selection
+      boxes,
+      items,
       // Address fields
       customer_name,
       first_name,
@@ -133,16 +136,17 @@ app.post('/api/create-subscription-direct', async (req, res) => {
         name: customer_name.substring(0, 50),
         email: customer_email.substring(0, 50),
         phone: customer_phone.substring(0, 20),
-        // Address info (shortened)
-        addr: address.substring(0, 50),
-        city: city.substring(0, 30),
-        state: state.substring(0, 30),
-        pin: postal_code.substring(0, 10),
+        
         // Product info
-        pid: product_id.substring(0, 20),
-        title: product_title.substring(0, 50),
-        freq: frequency.substring(0, 10),
-        type: 'mandate'
+        product_id: product_id,
+        product_title: product_title || 'Test Subscription',
+        product_description: product_description || '',
+        frequency: frequency,
+        
+        // ENHANCED: Box and items selection from cart
+        boxes: boxes || 'Not specified',
+        items: items || 'Not specified',
+        selected_plan: plan_name || 'Not specified',
       }
     };
     
@@ -1634,7 +1638,13 @@ async function createShopifyOrderFromPayment(paymentData) {
             taxable: true
           }
         ],
-        note: `Payment ID: ${paymentData.id} | Customer: ${customerName}`,
+        note: `📦 Box Selection: ${subscriptionInfo.boxes || 'Not specified'}
+📋 Items Selected: ${subscriptionInfo.items || 'Not specified'}
+📅 Subscription Plan: ${subscriptionInfo.selected_plan || 'Not specified'}
+📋 Frequency: ${subscriptionInfo.frequency || 'Not specified'}
+💰 Payment ID: ${paymentData.id}
+👤 Customer: ${customerName}
+📍 Address: ${address}, ${city}, ${state} ${postalCode}`,
         tags: ['subscription', 'razorpay', 'payment', 'mandate-flow'],
         shipping_address: {
           first_name: firstName,
@@ -1760,7 +1770,12 @@ async function createShopifyOrder(subscriptionData) {
         postal_code: subscriptionData.notes?.pin || subscriptionData.notes?.postal_code || '000000',
         product_id: subscriptionData.notes?.pid || subscriptionData.notes?.product_id || subscriptionData.product_id,
         product_title: subscriptionData.notes?.title || subscriptionData.notes?.product_title || 'Subscription',
-        frequency: subscriptionData.notes?.freq || subscriptionData.notes?.frequency || '1'
+        frequency: subscriptionData.notes?.freq || subscriptionData.notes?.frequency || '1',
+        
+        // NEW: Extract box selection and pad details
+        boxes: subscriptionData.notes?.boxes || subscriptionData.notes?.box_selection || 'Not specified',
+        items: subscriptionData.notes?.items || subscriptionData.notes?.pad_selection || 'Not specified',
+        selected_plan: subscriptionData.notes?.selected_plan || subscriptionData.notes?.plan_description || 'Not specified'
       };
     } catch (e) {
       console.log('Could not parse subscription data from notes, using fallback');
@@ -1832,7 +1847,13 @@ async function createShopifyOrder(subscriptionData) {
             taxable: true
           }
         ],
-        note: `Subscription ID: ${subscriptionData.id} | Plan: ${subscriptionData.plan_id} | Customer: ${customerName}`,
+        note: `📦 Box Selection: ${subscriptionInfo.boxes || 'Not specified'}
+📋 Items Selected: ${subscriptionInfo.items || 'Not specified'}
+📅 Subscription Plan: ${subscriptionInfo.selected_plan || 'Not specified'}
+📋 Frequency: ${subscriptionInfo.frequency || 'Not specified'}
+💰 Payment ID: ${subscriptionData.id}
+👤 Customer: ${customerName}
+📍 Address: ${address}, ${city}, ${state} ${postalCode}`,
         tags: ['subscription', 'razorpay', 'active', 'mandate-flow'],
         shipping_address: {
           first_name: firstName,

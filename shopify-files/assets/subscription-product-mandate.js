@@ -230,6 +230,15 @@ class SubscriptionProduct {
           const controller = new AbortController();
           const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
           
+          // Get box and items selection from cart properties
+          const boxesSelection = document.querySelector('input[name="properties[Boxes]"]')?.value || '';
+          const itemsSelection = document.querySelector('input[name="properties[Items]"]')?.value || '';
+          
+          console.log('📦 Cart properties found:', {
+            boxes: boxesSelection,
+            items: itemsSelection
+          });
+
           const response = await fetch(`${this.apiBase}/api/create-subscription-direct`, {
             method: 'POST',
             headers: {
@@ -244,6 +253,9 @@ class SubscriptionProduct {
               product_title: this.selectedPlan.name,
               product_description: this.selectedPlan.description,
               amount: this.selectedPlan.price,
+              // ENHANCED: Send box and items selection
+              boxes: boxesSelection,
+              items: itemsSelection,
               // Send address data directly to backend (not in Razorpay notes)
               customer_name: `${firstName} ${lastName}`,
               first_name: firstName,

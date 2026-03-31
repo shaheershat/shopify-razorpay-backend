@@ -1678,7 +1678,7 @@
 
   {% comment %} --- UPDATED CONSOLIDATED INPUTS --- {% endcomment %}
   <input type="hidden" id="cbprop-items-{{ section.id }}" name="properties[Items]" value="" form="{{ product_form_id }}">
-  {% comment %} <input type="hidden" id="cbprop-boxes-{{ section.id }}" name="properties[Boxes]" value="1" form="{{ product_form_id }}"> {% endcomment %}
+  <input type="hidden" id="cbprop-boxes-{{ section.id }}" name="properties[Boxes]" value="" form="{{ product_form_id }}">
 
   <div
     class="customize-box mb-25{% if enable_skeleton_loading %} skeleton-loading{% endif %}"
@@ -1949,6 +1949,18 @@
       const padLabels = [wrap.dataset.pad1, wrap.dataset.pad2, wrap.dataset.pad3];
       [1, 2, 3].forEach(i => { if (qty[i] > 0) summary.push(`${padLabels[i-1]}: ${qty[i]}`); });
       itemsInput.value = summary.join(', ');
+    }
+
+    // NEW: Update box selection in cart properties
+    const boxesInput = document.getElementById('cbprop-boxes-' + sid);
+    if (boxesInput) {
+      const selectedTier = wrap.querySelector('.cbox__tier.cbox--selected');
+      if (selectedTier) {
+        const tierNumber = parseInt(selectedTier.dataset.tier);
+        const tierLabels = ['One Box', 'Two Boxes', 'Three Boxes'];
+        boxesInput.value = tierLabels[tierNumber - 1] || `Tier ${tierNumber}`;
+        console.log(`📦 Box selection updated: ${boxesInput.value}`);
+      }
     }
 
     // NEW: Update button state
