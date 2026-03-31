@@ -402,33 +402,111 @@ app.post('/api/create-subscription-direct', async (req, res) => {
     console.log('📝 Notes count:', Object.keys(subscriptionData.notes).length);
     console.log('📝 Notes fields:', Object.keys(subscriptionData.notes));
     
-    // Make direct HTTP call to Razorpay
-    const razorpayResponse = await axios.post(`https://${process.env.RAZORPAY_KEY_ID}:${process.env.RAZORPAY_SECRET_KEY}@api.razorpay.com/v1/subscriptions`, subscriptionData, {
-      headers: {
-        'Content-Type': 'application/json'
-      }
-    });
+    // Create Razorpay subscription using the SDK (more reliable)
+    console.log('🔄 Creating subscription via Razorpay SDK...');
     
-    const subscription = razorpayResponse.data;
+    try {
+      // Use the Razorpay SDK instead of direct HTTP call
+      const subscription = await razorpay.subscriptions.create({
+        plan_id: plan_id,
+        customer_notify: 1,
+        quantity: 1,
+        total_count: parseInt(frequency),
+        start_at: Math.floor(Date.now() / 1000) + 60, // Start in 1 minute
+        expire_by: Math.floor(Date.now() / 1000) + (parseInt(frequency) * 30 * 24 * 60 * 60), // Expire after frequency months
+        notes: {
+          // Customer info (shortened)
+          name: customer_name.substring(0, 50),
+          email: customer_email.substring(0, 50),
+          phone: customer_phone.substring(0, 20),
+          
+          // Product info
+          product_id: product_id,
+          product_title: product_title || 'Test Subscription',
+          product_description: product_description || '',
+          frequency: frequency,
+          
+          // ENHANCED: Box and items selection from cart
+          boxes: boxes || 'Not specified',
+          items: items || 'Not specified',
+          selected_plan: plan_name || 'Not specified',
+        }
+      });
+      
+      console.log('✅ Razorpay subscription created via SDK:', subscription.id);
+      
+      console.log('Direct subscription created:', subscription.id);
+      console.log('✅ Address data stored in subscription notes:', {
+        customer_name,
+        address,
+        city,
+        state,
+        postal_code
+      });
 
-    console.log('Direct subscription created:', subscription.id);
-    console.log('✅ Address data stored in subscription notes:', {
-      customer_name,
-      address,
-      city,
-      state,
-      postal_code
-    });
+      // Return subscription info with correct amount from plan (convert to paise for frontend)
+      res.json({
+        success: true,
+        subscription_id: subscription.id,
+        key_id: process.env.RAZORPAY_KEY_ID,
+        amount: plan.item.amount, // Already in paise from Razorpay
+        status: subscription.status,
+        message: 'Subscription created - complete mandate to activate'
+      });
 
-    // Return subscription info with correct amount from plan (convert to paise for frontend)
-    res.json({
-      success: true,
-      subscription_id: subscription.id,
-      key_id: process.env.RAZORPAY_KEY_ID,
-      amount: plan.item.amount, // Already in paise from Razorpay
-      status: subscription.status,
-      message: 'Subscription created - complete mandate to activate'
-    });
+    } catch (razorpayError) {
+      console.error('❌ Razorpay SDK error:', razorpayError);
+      console.error('❌ Error details:', {
+        message: razorpayError.message,
+        description: razorpayError.description,
+        code: razorpayError.code,
+        statusCode: razorpayError.statusCode
+      });
+      
+      // Fallback to direct HTTP call if SDK fails
+      console.log('🔄 SDK failed, trying direct HTTP call...');
+      try {
+        const razorpayResponse = await axios.post(`https://${process.env.RAZORPAY_KEY_ID}:${process.env.RAZORPAY_SECRET_KEY}@api.razorpay.com/v1/subscriptions`, subscriptionData, {
+          headers: {
+            'Content-Type': 'application/json'
+          }
+        });
+        
+        const subscription = razorpayResponse.data;
+        console.log('✅ Direct HTTP call succeeded:', subscription.id);
+        
+        console.log('Direct subscription created:', subscription.id);
+        console.log('✅ Address data stored in subscription notes:', {
+          customer_name,
+          address,
+          city,
+          state,
+          postal_code
+        });
+
+        // Return subscription info with correct amount from plan (convert to paise for frontend)
+        res.json({
+          success: true,
+          subscription_id: subscription.id,
+          key_id: process.env.RAZORPAY_KEY_ID,
+          amount: plan.item.amount, // Already in paise from Razorpay
+          status: subscription.status,
+          message: 'Subscription created - complete mandate to activate'
+        });
+        
+      } catch (httpError) {
+        console.error('❌ Both SDK and HTTP call failed:', httpError);
+        return res.status(400).json({
+          success: false,
+          error: 'Failed to create Razorpay subscription',
+          details: {
+            sdkError: razorpayError.message,
+            httpError: httpError.message,
+            statusCode: httpError.response?.status || 500
+          }
+        });
+      }
+    }
 
   } catch (error) {
     console.error('❌ Error creating direct subscription:', error);
