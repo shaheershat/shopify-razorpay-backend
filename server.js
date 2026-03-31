@@ -2194,6 +2194,60 @@ app.post('/api/debug-env', async (req, res) => {
   }
 });
 
+// Test Razorpay Credentials
+app.post('/api/test-razorpay-auth', async (req, res) => {
+  try {
+    console.log('🔍 Testing Razorpay authentication...');
+    
+    if (!process.env.RAZORPAY_KEY_ID || !process.env.RAZORPAY_SECRET_KEY) {
+      return res.status(400).json({
+        success: false,
+        error: 'Razorpay credentials not configured'
+      });
+    }
+    
+    const razorpay = new Razorpay({
+      key_id: process.env.RAZORPAY_KEY_ID,
+      secret: process.env.RAZORPAY_SECRET_KEY
+    });
+    
+    // Test by fetching plans
+    try {
+      const plans = await razorpay.plans.all({ count: 1 });
+      console.log('✅ Razorpay authentication successful');
+      
+      res.json({
+        success: true,
+        message: 'Razorpay authentication successful',
+        plansCount: plans.items.length,
+        credentials: {
+          keyId: process.env.RAZORPAY_KEY_ID.substring(0, 8) + '...',
+          mode: process.env.RAZORPAY_KEY_ID.includes('test') ? 'TEST' : 'LIVE'
+        }
+      });
+    } catch (razorpayError) {
+      console.error('❌ Razorpay authentication failed:', razorpayError);
+      res.status(400).json({
+        success: false,
+        error: 'Razorpay authentication failed',
+        details: {
+          message: razorpayError.message,
+          description: razorpayError.description,
+          code: razorpayError.code,
+          statusCode: razorpayError.statusCode
+        }
+      });
+    }
+    
+  } catch (error) {
+    console.error('❌ Test endpoint failed:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
 // Debug Shopify Configuration
 app.post('/api/test-shopify-connection', async (req, res) => {
   try {
