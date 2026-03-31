@@ -1919,6 +1919,33 @@ async function createShopifyOrder(subscriptionData) {
       notesCount: Object.keys(subscriptionData.notes || {}).length
     });
     
+    // First, fetch plan details to get correct amount
+    let planAmount = 0;
+    try {
+      console.log('💰 Fetching plan details for:', subscriptionData.plan_id);
+      const plan = await razorpay.plans.fetch(subscriptionData.plan_id);
+      planAmount = plan.item.amount; // Amount in paise
+      console.log('✅ Plan amount fetched successfully:', {
+        planId: plan.id,
+        planName: plan.item.name,
+        amount: planAmount,
+        amountInRupees: (planAmount / 100).toFixed(2)
+      });
+    } catch (planError) {
+      console.log('⚠️ Could not fetch plan details, using fallback amount:', planError.message);
+      planAmount = subscriptionData.amount || 1500; // Use amount from frontend or fallback
+      console.log('🔄 Using fallback amount:', planAmount);
+    }
+    
+    console.log('🚀 Starting Shopify order creation process...');
+    console.log('📋 Subscription data received:', {
+      subscriptionId: subscriptionData.id,
+      planId: subscriptionData.plan_id,
+      status: subscriptionData.status,
+      hasNotes: !!subscriptionData.notes,
+      notesCount: Object.keys(subscriptionData.notes || {}).length
+    });
+    
     // Parse subscription data from notes (using original logic)
     let subscriptionInfo = {};
     try {
