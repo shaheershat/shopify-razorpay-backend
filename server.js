@@ -2358,6 +2358,72 @@ function getVariantId(planId) {
     }
   });
 
+  // Test Order Creation Endpoint (without Shopify API)
+  app.post('/api/test-order-simple', async (req, res) => {
+    try {
+      console.log('🧪 Creating simple test order...');
+      
+      const testOrderData = {
+        id: 'test_sub_' + Date.now(),
+        plan_id: 'plan_SSfug4F5nvQEi5',
+        email: 'test@example.com',
+        phone: '+919876543210',
+        notes: {
+          // Customer info
+          name: 'Test Customer',
+          email: 'test@example.com',
+          phone: '+919876543210',
+          addr: '123 Test Street',
+          city: 'Mumbai',
+          state: 'Maharashtra',
+          pin: '400001',
+          
+          // Product info
+          product_id: '46513506189501',
+          product_title: 'Test Subscription',
+          product_description: 'Test subscription plan',
+          frequency: '3months',
+          
+          // ENHANCED: Box and items selection from cart
+          boxes: 'Two Boxes',
+          items: '2 M pads, 6 L pads, 4 XL pads',
+          selected_plan: '3 Months Plan'
+        }
+      };
+      
+      // Simulate order creation (without Shopify API call)
+      const mockShopifyOrder = {
+        id: 'shopify_' + Date.now(),
+        order_number: Math.floor(Math.random() * 10000),
+        email: testOrderData.email,
+        total_price: '299.00',
+        financial_status: 'paid',
+        created_at: new Date().toISOString(),
+        note: `📦 Box Selection: ${testOrderData.notes.boxes}
+📋 Items Selected: ${testOrderData.notes.items}
+📅 Subscription Plan: ${testOrderData.notes.selected_plan}
+📋 Frequency: ${testOrderData.notes.frequency}
+💰 Payment ID: ${testOrderData.id}
+👤 Customer: ${testOrderData.notes.name}
+📍 Address: ${testOrderData.notes.addr}, ${testOrderData.notes.city}, ${testOrderData.notes.state} ${testOrderData.notes.pin}`
+      };
+      
+      res.json({
+        success: true,
+        message: 'Test order created successfully (simulated)',
+        shopify_order: mockShopifyOrder,
+        test_data: testOrderData
+      });
+      
+    } catch (error) {
+      console.error('❌ Simple test order creation failed:', error);
+      res.status(500).json({
+        success: false,
+        error: error.message
+      });
+    }
+  });
+
   // Test Order Creation Endpoint
   app.post('/api/test-order', async (req, res) => {
     try {
