@@ -54,7 +54,13 @@ async function startServer() {
   // Shopify Order Creation Function
   async function createShopifyOrder(subscriptionData) {
     try {
-      const shopifyUrl = `https://${process.env.SHOPIFY_STORE_NAME}.myshopify.com/admin/api/2023-10/orders.json`;
+      // Fix Shopify URL construction - handle both cases
+    let shopifyUrl;
+    if (process.env.SHOPIFY_STORE_NAME.includes('.myshopify.com')) {
+      shopifyUrl = `https://${process.env.SHOPIFY_STORE_NAME}/admin/api/2023-10/orders.json`;
+    } else {
+      shopifyUrl = `https://${process.env.SHOPIFY_STORE_NAME}.myshopify.com/admin/api/2023-10/orders.json`;
+    }
       
       console.log('🚀 Starting Shopify order creation process...');
       console.log('📋 Subscription data received:', {
@@ -1538,21 +1544,38 @@ app.post('/api/test-shopify-app-order-real', async (req, res) => {
     console.log('📦 Box Selection:', mockSubscription.notes.boxes);
     console.log('📋 Items Selected:', mockSubscription.notes.items);
     
-    // Make REAL Shopify API call
-    const shopifyUrl = `https://${process.env.SHOPIFY_STORE_NAME}.myshopify.com/admin/api/2023-10/orders.json`;
+    // Make REAL Shopify API call with proper error handling
+    // Fix Shopify URL construction - handle both cases
+    let shopifyUrl;
+    if (process.env.SHOPIFY_STORE_NAME.includes('.myshopify.com')) {
+      shopifyUrl = `https://${process.env.SHOPIFY_STORE_NAME}/admin/api/2023-10/orders.json`;
+    } else {
+      shopifyUrl = `https://${process.env.SHOPIFY_STORE_NAME}.myshopify.com/admin/api/2023-10/orders.json`;
+    }
     
     console.log('📤 Sending REAL request to Shopify API...');
     console.log('🔗 Shopify URL:', shopifyUrl);
     console.log('🔑 Using Access Token:', process.env.SHOPIFY_ACCESS_TOKEN ? 'SET' : 'NOT SET');
+    console.log('🏪 Store Name:', process.env.SHOPIFY_STORE_NAME);
+    
+    // Check if we have proper Shopify credentials
+    if (!process.env.SHOPIFY_ACCESS_TOKEN) {
+      throw new Error('SHOPIFY_ACCESS_TOKEN is not configured');
+    }
+    
+    if (!process.env.SHOPIFY_STORE_NAME) {
+      throw new Error('SHOPIFY_STORE_NAME is not configured');
+    }
     
     const response = await axios.post(shopifyUrl, shopifyOrderData, {
       headers: {
         'X-Shopify-Access-Token': process.env.SHOPIFY_ACCESS_TOKEN,
         'Content-Type': 'application/json'
       },
-      httpsAgent: new (require('https').Agent)({
-        rejectUnauthorized: false
-      })
+      timeout: 30000, // 30 second timeout
+      validateStatus: function (status) {
+        return status < 500; // Resolve only if the status code is less than 500
+      }
     });
 
     console.log('✅ REAL Shopify order created successfully!');
@@ -2417,7 +2440,10 @@ async function createFailedPaymentOrder(paymentData) {
       headers: {
         'X-Shopify-Access-Token': process.env.SHOPIFY_ACCESS_TOKEN,
         'Content-Type': 'application/json'
-      }
+      },
+      httpsAgent: new (require('https').Agent)({
+        rejectUnauthorized: false
+      })
     });
 
     console.log('✅ Failed payment order created for tracking:', response.data.order.id);
@@ -2646,7 +2672,10 @@ async function createShopifyOrderFromPayment(paymentData) {
       headers: {
         'X-Shopify-Access-Token': process.env.SHOPIFY_ACCESS_TOKEN,
         'Content-Type': 'application/json'
-      }
+      },
+      httpsAgent: new (require('https').Agent)({
+        rejectUnauthorized: false
+      })
     });
 
     console.log('✅ SUCCESS: Shopify order created from payment!');
@@ -2680,7 +2709,13 @@ async function createShopifyOrderFromPayment(paymentData) {
 // Shopify Order Creation Function
 async function createShopifyOrder(subscriptionData) {
   try {
-    const shopifyUrl = `https://${process.env.SHOPIFY_STORE_NAME}.myshopify.com/admin/api/2023-10/orders.json`;
+    // Fix Shopify URL construction - handle both cases
+    let shopifyUrl;
+    if (process.env.SHOPIFY_STORE_NAME.includes('.myshopify.com')) {
+      shopifyUrl = `https://${process.env.SHOPIFY_STORE_NAME}/admin/api/2023-10/orders.json`;
+    } else {
+      shopifyUrl = `https://${process.env.SHOPIFY_STORE_NAME}.myshopify.com/admin/api/2023-10/orders.json`;
+    }
     
     console.log('🚀 Starting Shopify order creation process...');
     console.log('📋 Subscription data received:', {
@@ -2842,7 +2877,10 @@ async function createShopifyOrder(subscriptionData) {
       headers: {
         'X-Shopify-Access-Token': process.env.SHOPIFY_ACCESS_TOKEN,
         'Content-Type': 'application/json'
-      }
+      },
+      httpsAgent: new (require('https').Agent)({
+        rejectUnauthorized: false
+      })
     });
 
     console.log('✅ SUCCESS: Shopify order created successfully!');
@@ -3049,7 +3087,13 @@ function getVariantId(planId) {
       });
       
       // Create Shopify order directly (without plan fetch)
-      const shopifyUrl = `https://${process.env.SHOPIFY_STORE_NAME}.myshopify.com/admin/api/2023-10/orders.json`;
+      // Fix Shopify URL construction - handle both cases
+    let shopifyUrl;
+    if (process.env.SHOPIFY_STORE_NAME.includes('.myshopify.com')) {
+      shopifyUrl = `https://${process.env.SHOPIFY_STORE_NAME}/admin/api/2023-10/orders.json`;
+    } else {
+      shopifyUrl = `https://${process.env.SHOPIFY_STORE_NAME}.myshopify.com/admin/api/2023-10/orders.json`;
+    }
       
       // Build Shopify order data directly
       const orderData = {
