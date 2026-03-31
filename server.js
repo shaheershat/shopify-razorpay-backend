@@ -2194,6 +2194,46 @@ app.post('/api/debug-env', async (req, res) => {
   }
 });
 
+// Test Razorpay with Test Credentials
+app.post('/api/test-razorpay-test-mode', async (req, res) => {
+  try {
+    console.log('🔍 Testing Razorpay with test credentials...');
+    
+    // Use Razorpay's public test credentials for verification
+    const testRazorpay = new Razorpay({
+      key_id: 'rzp_test_1DP5mmOlF5G5Tq',
+      secret: '1DP5mmOlF5G5TqSHOQzHNhFLgzVkoEIB'
+    });
+    
+    // Test by fetching plans
+    try {
+      const plans = await testRazorpay.plans.all({ count: 1 });
+      console.log('✅ Razorpay test credentials working');
+      
+      res.json({
+        success: true,
+        message: 'Razorpay test credentials work - API structure is correct',
+        plansCount: plans.items.length,
+        note: 'Your live credentials may be invalid or the plan may not exist in live mode'
+      });
+    } catch (testError) {
+      console.error('❌ Even test credentials failed:', testError);
+      res.status(400).json({
+        success: false,
+        error: 'Even test credentials failed',
+        details: testError.message
+      });
+    }
+    
+  } catch (error) {
+    console.error('❌ Test endpoint failed:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
 // Test Razorpay Credentials
 app.post('/api/test-razorpay-auth', async (req, res) => {
   try {
