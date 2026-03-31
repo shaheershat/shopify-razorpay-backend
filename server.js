@@ -1670,26 +1670,35 @@ app.post('/api/test-shopify-app-order-real', async (req, res) => {
       }
     });
 
-    console.log('✅ REAL Shopify order created successfully!');
-    console.log('📦 Order details:', {
-      orderId: response.data.order.id,
-      orderNumber: response.data.order.order_number,
-      customerEmail: response.data.order.email,
-      totalAmount: response.data.order.total_price
+    console.log('📤 REAL Shopify API response:', {
+      status: response.status,
+      statusText: response.statusText,
+      hasData: !!response.data
     });
-    console.log('🔗 REAL Shopify Order Link:', `https://${process.env.SHOPIFY_STORE_NAME}.myshopify.com/admin/orders/${response.data.order.id}`);
     
-    res.json({
-      success: true,
-      message: 'REAL Shopify order created successfully!',
-      subscription_id: mockSubscription.id,
-      shopify_order: response.data.order,
-      shopify_order_data: shopifyOrderData,
-      customer_details: {
-        name: mockSubscription.notes.customer_name,
-        email: mockSubscription.notes.customer_email,
-        phone: mockSubscription.notes.customer_phone,
-        address: `${mockSubscription.notes.address}, ${mockSubscription.notes.city}, ${mockSubscription.notes.state} ${mockSubscription.notes.postal_code}` 
+    if (response.data && response.data.order) {
+      console.log('✅ REAL Shopify order created successfully!');
+      console.log('📋 Order details:', {
+        orderId: response.data.order.id,
+        orderNumber: response.data.order.name,
+        customerEmail: response.data.order.email,
+        totalPrice: response.data.order.total_price,
+        currency: response.data.order.currency,
+        createdAt: response.data.order.created_at
+      });
+      
+      // Return the order data
+      res.json({
+        success: true,
+        message: 'REAL Shopify order created successfully',
+        order: response.data.order,
+        subscription: mockSubscription,
+        shopifyOrderId: response.data.order.id
+      });
+    } else {
+      console.error('❌ Invalid Shopify response structure:', response.data);
+      throw new Error('Invalid Shopify response structure - no order data');
+    }
       },
       order_details: {
         total_amount: (mockSubscription.charge_at / 100).toFixed(2),
@@ -3696,7 +3705,8 @@ function getVariantId(planId) {
     console.log(`✓ Server running on port ${PORT}`);
     console.log(`✓ Health check: http://localhost:${PORT}/health`);
     console.log(`✓ Environment: ${process.env.NODE_ENV || 'development'}`);
-    console.log(`✓ PORT from env: ${process.env.PORT || 'using default 3000'}`);
+    console.log(`✓ PORT from env: ${process.env.PORT || 'using default 8080'}`);
+    console.log(`✓ Host binding: 0.0.0.0 (all interfaces)`);
   });
 
   return app;
