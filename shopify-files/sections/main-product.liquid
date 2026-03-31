@@ -366,6 +366,9 @@
               <!-- Load Razorpay SDK -->
               <script src="https://checkout.razorpay.com/v1/razorpay.js"></script>
               
+              <!-- Load Updated Subscription JavaScript -->
+              <script src="{{ 'subscription-product-updated.js' | asset_url }}" defer></script>
+              
               <!-- Initialize with correct key -->
               <script>
                 // Override any existing Razorpay configuration
@@ -1073,14 +1076,14 @@
 
                 // Load subscription mandate script (ensure Razorpay is loaded first)
                 setTimeout(() => {
-                  if (typeof window.subscriptionProduct === 'undefined') {
+                  if (typeof window.subscriptionProductUpdated === 'undefined') {
                     const script = document.createElement('script');
-                    script.src = '{{ "subscription-product-mandate.js" | asset_url }}';
+                    script.src = '{{ "subscription-product-updated.js" | asset_url }}';
                     script.onload = function() {
                       console.log('Subscription mandate script loaded');
                       // Manually initialize since DOMContentLoaded might have already fired
-                      if (typeof SubscriptionProduct !== 'undefined' && typeof window.subscriptionProduct === 'undefined') {
-                        window.subscriptionProduct = new SubscriptionProduct();
+                      if (typeof SubscriptionProductUpdated !== 'undefined' && typeof window.subscriptionProductUpdated === 'undefined') {
+                        window.subscriptionProductUpdated = new SubscriptionProductUpdated();
                         console.log('Subscription product manually initialized');
                       }
                     };

@@ -306,6 +306,20 @@ async function startServer() {
 // Create Direct Subscription (Bypass Shopify Checkout) - For Mandate Flow
 app.post('/api/create-subscription-direct', async (req, res) => {
   try {
+    console.log('🔍 Checking environment variables...');
+    console.log('RAZORPAY_KEY_ID:', process.env.RAZORPAY_KEY_ID ? 'SET' : 'NOT SET');
+    console.log('RAZORPAY_SECRET_KEY:', process.env.RAZORPAY_SECRET_KEY ? 'SET' : 'NOT SET');
+    console.log('SHOPIFY_STORE_NAME:', process.env.SHOPIFY_STORE_NAME || 'NOT SET');
+    console.log('SHOPIFY_ACCESS_TOKEN:', process.env.SHOPIFY_ACCESS_TOKEN ? 'SET' : 'NOT SET');
+    
+    if (!process.env.RAZORPAY_KEY_ID || !process.env.RAZORPAY_SECRET_KEY) {
+      console.error('❌ Razorpay credentials not configured');
+      return res.status(500).json({ 
+        success: false, 
+        error: 'Razorpay credentials not configured in server environment' 
+      });
+    }
+    
     const {
       plan_id,
       customer_email,
@@ -2039,7 +2053,70 @@ app.post('/api/test-subscription-activated', async (req, res) => {
   }
 });
 
-// Test Shopify Connection
+// Debug Environment Variables
+app.post('/api/debug-env', async (req, res) => {
+  try {
+    console.log('🔍 Debugging environment variables...');
+    
+    const env = {
+      RAZORPAY_KEY_ID: process.env.RAZORPAY_KEY_ID ? `SET (${process.env.RAZORPAY_KEY_ID.substring(0, 8)}...)` : 'NOT SET',
+      RAZORPAY_SECRET_KEY: process.env.RAZORPAY_SECRET_KEY ? `SET (${process.env.RAZORPAY_SECRET_KEY.substring(0, 8)}...)` : 'NOT SET',
+      SHOPIFY_STORE_NAME: process.env.SHOPIFY_STORE_NAME || 'NOT SET',
+      SHOPIFY_ACCESS_TOKEN: process.env.SHOPIFY_ACCESS_TOKEN ? `SET (${process.env.SHOPIFY_ACCESS_TOKEN.substring(0, 8)}...)` : 'NOT SET',
+      NODE_ENV: process.env.NODE_ENV || 'development',
+      PORT: process.env.PORT || '3000'
+    };
+    
+    console.log('📋 Environment variables:', env);
+    
+    // Test Razorpay connection
+    let razorpayTest = { success: false, error: null };
+    if (process.env.RAZORPAY_KEY_ID && process.env.RAZORPAY_SECRET_KEY) {
+      try {
+        const razorpay = new Razorpay({
+          key_id: process.env.RAZORPAY_KEY_ID,
+          secret: process.env.RAZORPAY_SECRET_KEY
+        });
+        
+        // Test by fetching plans
+        const plans = await razorpay.plans.all({ count: 1 });
+        razorpayTest = {
+          success: true,
+          plansCount: plans.items.length,
+          message: 'Razorpay API connection successful'
+        };
+      } catch (error) {
+        razorpayTest = {
+          success: false,
+          error: error.message,
+          statusCode: error.statusCode || 'Unknown'
+        };
+      }
+    }
+    
+    res.json({
+      success: true,
+      environment: env,
+      razorpayTest: razorpayTest,
+      recommendations: [
+        '1. Ensure RAZORPAY_KEY_ID is set in Railway environment variables',
+        '2. Ensure RAZORPAY_SECRET_KEY is set in Railway environment variables',
+        '3. Ensure SHOPIFY_STORE_NAME is set (without .myshopify.com)',
+        '4. Ensure SHOPIFY_ACCESS_TOKEN has write_orders scope',
+        '5. Check Railway deployment logs for any errors'
+      ]
+    });
+    
+  } catch (error) {
+    console.error('❌ Debug endpoint failed:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+// Debug Shopify Configuration
 app.post('/api/test-shopify-connection', async (req, res) => {
   try {
     console.log('🔍 Testing Shopify connection...');
