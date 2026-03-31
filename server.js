@@ -1326,6 +1326,182 @@ app.post('/api/subscriptions/cancel', async (req, res) => {
   }
 });
 
+// Test Shopify App Order Creation (Simulated - Like Old Code)
+app.post('/api/test-shopify-app-order', async (req, res) => {
+  try {
+    console.log('🧪 Testing Shopify app order creation simulation...');
+    
+    const { customer_data, product_data, plan_data, box_selection, items_selection } = req.body;
+    
+    // Create mock subscription data like your old code
+    const mockSubscription = {
+      id: 'test_sub_' + Date.now(),
+      plan_id: plan_data?.plan_id || 'plan_SSfug4F5nvQEi5',
+      status: 'authenticated',
+      notes: {
+        // Product info
+        product_id: product_data?.product_id || '46513506189501',
+        product_title: product_data?.title || 'Test Subscription',
+        product_description: product_data?.description || 'Test subscription plan',
+        shopify_store: process.env.SHOPIFY_STORE_NAME,
+        // Customer info
+        customer_email: customer_data?.email || 'test@example.com',
+        customer_phone: customer_data?.phone || '+919876543210',
+        customer_name: customer_data?.name || `${customer_data?.first_name} ${customer_data?.last_name}`,
+        first_name: customer_data?.first_name || 'Test',
+        last_name: customer_data?.last_name || 'User',
+        // Address info
+        address: customer_data?.address?.address1 || '123 Test Street',
+        address_line_2: customer_data?.address?.address2 || '',
+        city: customer_data?.address?.city || 'Mumbai',
+        state: customer_data?.address?.state || 'Maharashtra',
+        postal_code: customer_data?.address?.postal_code || '400001',
+        country: customer_data?.address?.country || 'IN',
+        // Subscription info
+        frequency: plan_data?.frequency || '3',
+        subscription_type: 'mandate',
+        flow: 'autopay',
+        
+        // ENHANCED: Box and items selection from cart
+        boxes: box_selection || 'Two Boxes',
+        items: items_selection || '2 M pads, 6 L pads, 4 XL pads',
+        selected_plan: plan_data?.plan_name || '3 Months Plan'
+      },
+      charge_at: plan_data?.amount || 29900 // Amount in paise (₹299.00)
+    };
+    
+    console.log('📋 Mock subscription created:', {
+      subscriptionId: mockSubscription.id,
+      customerName: mockSubscription.notes.customer_name,
+      email: mockSubscription.notes.customer_email,
+      phone: mockSubscription.notes.customer_phone,
+      address: `${mockSubscription.notes.address}, ${mockSubscription.notes.city}`,
+      planAmount: mockSubscription.charge_at,
+      boxes: mockSubscription.notes.boxes,
+      items: mockSubscription.notes.items,
+      selectedPlan: mockSubscription.notes.selected_plan
+    });
+    
+    // Create Shopify order data structure (like your old code)
+    const shopifyOrderData = {
+      order: {
+        email: mockSubscription.notes.customer_email,
+        phone: mockSubscription.notes.customer_phone,
+        financial_status: 'paid',
+        line_items: [
+          {
+            variant_id: mockSubscription.notes.product_id,
+            quantity: 1,
+            title: `${mockSubscription.notes.product_title} - ${mockSubscription.plan_id}`,
+            price: (mockSubscription.charge_at / 100).toString(),
+            taxable: true
+          }
+        ],
+        note: `📦 Box Selection: ${mockSubscription.notes.boxes}
+📋 Items Selected: ${mockSubscription.notes.items}
+📅 Subscription Plan: ${mockSubscription.notes.selected_plan}
+📋 Frequency: ${mockSubscription.notes.frequency}
+💰 Payment ID: ${mockSubscription.id}
+👤 Customer: ${mockSubscription.notes.customer_name}
+📍 Address: ${mockSubscription.notes.address}, ${mockSubscription.notes.city}, ${mockSubscription.notes.state} ${mockSubscription.notes.postal_code}`,
+        tags: ['subscription', 'razorpay', 'test-order', 'mandate-flow'],
+        shipping_address: {
+          first_name: mockSubscription.notes.first_name,
+          last_name: mockSubscription.notes.last_name,
+          address1: mockSubscription.notes.address,
+          address2: mockSubscription.notes.address_line_2,
+          city: mockSubscription.notes.city,
+          province: mockSubscription.notes.state,
+          country: mockSubscription.notes.country,
+          zip: mockSubscription.notes.postal_code
+        },
+        billing_address: {
+          first_name: mockSubscription.notes.first_name,
+          last_name: mockSubscription.notes.last_name,
+          address1: mockSubscription.notes.address,
+          address2: mockSubscription.notes.address_line_2,
+          city: mockSubscription.notes.city,
+          province: mockSubscription.notes.state,
+          country: mockSubscription.notes.country,
+          zip: mockSubscription.notes.postal_code
+        },
+        customer: {
+          first_name: mockSubscription.notes.first_name,
+          last_name: mockSubscription.notes.last_name,
+          email: mockSubscription.notes.customer_email,
+          phone: mockSubscription.notes.customer_phone
+        }
+      }
+    };
+    
+    console.log('🛒 Shopify order data prepared (SIMULATED):');
+    console.log('📦 Customer:', shopifyOrderData.order.email);
+    console.log('🏠 Address:', `${shopifyOrderData.order.shipping_address.address1}, ${shopifyOrderData.order.shipping_address.city}`);
+    console.log('💰 Amount:', shopifyOrderData.order.line_items[0].price);
+    console.log('📦 Box Selection:', mockSubscription.notes.boxes);
+    console.log('📋 Items Selected:', mockSubscription.notes.items);
+    
+    // Simulate Shopify response (like your old code would create)
+    const simulatedShopifyResponse = {
+      order: {
+        id: 'shopify_' + Date.now(),
+        order_number: Math.floor(Math.random() * 10000),
+        email: shopifyOrderData.order.email,
+        phone: shopifyOrderData.order.phone,
+        financial_status: 'paid',
+        total_price: shopifyOrderData.order.line_items[0].price,
+        subtotal_price: shopifyOrderData.order.line_items[0].price,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+        tags: shopifyOrderData.order.tags.join(', '),
+        note: shopifyOrderData.order.note,
+        line_items: shopifyOrderData.order.line_items,
+        shipping_address: shopifyOrderData.order.shipping_address,
+        billing_address: shopifyOrderData.order.billing_address,
+        customer: shopifyOrderData.order.customer
+      }
+    };
+    
+    console.log('✅ SIMULATED Shopify order created successfully!');
+    console.log('🔗 Simulated Shopify Order Link:', `https://${process.env.SHOPIFY_STORE_NAME}/admin/orders/${simulatedShopifyResponse.order.id}`);
+    
+    res.json({
+      success: true,
+      message: 'Shopify app order simulation successful!',
+      subscription_id: mockSubscription.id,
+      shopify_order: simulatedShopifyResponse.order,
+      shopify_order_data: shopifyOrderData, // Full data that would be sent to Shopify
+      customer_details: {
+        name: mockSubscription.notes.customer_name,
+        email: mockSubscription.notes.customer_email,
+        phone: mockSubscription.notes.customer_phone,
+        address: `${mockSubscription.notes.address}, ${mockSubscription.notes.city}, ${mockSubscription.notes.state} ${mockSubscription.notes.postal_code}` 
+      },
+      order_details: {
+        total_amount: (mockSubscription.charge_at / 100).toFixed(2),
+        product_title: mockSubscription.notes.product_title,
+        variant_id: mockSubscription.notes.product_id
+      },
+      enhanced_details: {
+        box_selection: mockSubscription.notes.boxes,
+        items_selection: mockSubscription.notes.items,
+        selected_plan: mockSubscription.notes.selected_plan,
+        frequency: mockSubscription.notes.frequency
+      },
+      shopify_admin_url: `https://${process.env.SHOPIFY_STORE_NAME}/admin/orders/${simulatedShopifyResponse.order.id}`,
+      note: 'This is a SIMULATED order - no real Shopify order was created'
+    });
+    
+  } catch (error) {
+    console.error('❌ Shopify app order simulation failed:', error);
+    res.status(400).json({
+      success: false,
+      error: error.message,
+      details: error.response?.data || 'No additional details'
+    });
+  }
+});
+
 // Test Webhook Trigger with Custom Data (for testing) - Enhanced Version
 app.post('/api/test-custom-order-enhanced', async (req, res) => {
   try {
