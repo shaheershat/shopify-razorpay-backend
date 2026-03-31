@@ -3691,13 +3691,15 @@ function getVariantId(planId) {
     }
   });
 
-  const PORT = process.env.PORT || 8080; // Railway uses 8080 by default
-  const server = app.listen(PORT, '0.0.0.0', () => {
+  const PORT = process.env.PORT || 3000;
+  app.listen(PORT, '0.0.0.0', () => {
     console.log(`✓ Server running on port ${PORT}`);
     console.log(`✓ Health check: http://localhost:${PORT}/health`);
     console.log(`✓ Environment: ${process.env.NODE_ENV || 'development'}`);
     console.log(`✓ PORT from env: ${process.env.PORT || 'using default 3000'}`);
   });
+
+  return app;
 }
 
 startServer().catch(error => {
