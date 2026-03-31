@@ -2361,6 +2361,133 @@ function getVariantId(planId) {
     }
   });
 
+  // Real Shopify Order Test Endpoint (with fixed amount)
+  app.post('/api/test-real-shopify-order-fixed', async (req, res) => {
+    try {
+      console.log('🧪 Creating REAL Shopify order with fixed amount...');
+      
+      const testOrderData = {
+        id: 'test_sub_' + Date.now(),
+        plan_id: 'plan_SSfug4F5nvQEi5',
+        email: 'test@example.com',
+        phone: '+919876543210',
+        amount: 29900, // Fixed amount in paise (₹299.00)
+        notes: {
+          // Customer info
+          name: 'Test Customer',
+          email: 'test@example.com',
+          phone: '+919876543210',
+          addr: '123 Test Street',
+          city: 'Mumbai',
+          state: 'Maharashtra',
+          pin: '400001',
+          
+          // Product info
+          product_id: '46513506189501',
+          product_title: 'Test Subscription',
+          product_description: 'Test subscription plan',
+          frequency: '3months',
+          
+          // ENHANCED: Box and items selection from cart
+          boxes: 'Two Boxes',
+          items: '2 M pads, 6 L pads, 4 XL pads',
+          selected_plan: '3 Months Plan'
+        }
+      };
+      
+      console.log('📋 Test order data prepared:', {
+        subscriptionId: testOrderData.id,
+        planId: testOrderData.plan_id,
+        customerEmail: testOrderData.email,
+        amount: testOrderData.amount
+      });
+      
+      // Create Shopify order directly (without plan fetch)
+      const shopifyUrl = `https://${process.env.SHOPIFY_STORE_NAME}.myshopify.com/admin/api/2023-10/orders.json`;
+      
+      // Build Shopify order data directly
+      const orderData = {
+        order: {
+          email: testOrderData.email,
+          phone: testOrderData.phone,
+          financial_status: 'paid',
+          line_items: [
+            {
+              variant_id: '46513506189501',
+              quantity: 1,
+              title: `${testOrderData.notes.product_title} - ${testOrderData.plan_id}`,
+              price: (testOrderData.amount / 100).toString(), // Convert from paise to rupees
+              taxable: true
+            }
+          ],
+          note: `📦 Box Selection: ${testOrderData.notes.boxes}
+📋 Items Selected: ${testOrderData.notes.items}
+📅 Subscription Plan: ${testOrderData.notes.selected_plan}
+📋 Frequency: ${testOrderData.notes.frequency}
+💰 Payment ID: ${testOrderData.id}
+👤 Customer: ${testOrderData.notes.name}
+📍 Address: ${testOrderData.notes.addr}, ${testOrderData.notes.city}, ${testOrderData.notes.state} ${testOrderData.notes.pin}`,
+          tags: ['subscription', 'razorpay', 'test-order'],
+          shipping_address: {
+            first_name: 'Test',
+            last_name: 'Customer',
+            address1: testOrderData.notes.addr,
+            city: testOrderData.notes.city,
+            province: testOrderData.notes.state,
+            country: 'IN',
+            zip: testOrderData.notes.pin
+          },
+          billing_address: {
+            first_name: 'Test',
+            last_name: 'Customer',
+            address1: testOrderData.notes.addr,
+            city: testOrderData.notes.city,
+            province: testOrderData.notes.state,
+            country: 'IN',
+            zip: testOrderData.notes.pin
+          },
+          customer: {
+            first_name: 'Test',
+            last_name: 'Customer',
+            email: testOrderData.email,
+            phone: testOrderData.phone
+          }
+        }
+      };
+
+      console.log('📤 Sending REAL request to Shopify API...');
+      
+      const response = await axios.post(shopifyUrl, orderData, {
+        headers: {
+          'X-Shopify-Access-Token': process.env.SHOPIFY_ACCESS_TOKEN,
+          'Content-Type': 'application/json'
+        },
+        httpsAgent: new (require('https').Agent)({
+          rejectUnauthorized: false
+        })
+      });
+
+      console.log('✅ SUCCESS: REAL Shopify order created!');
+      console.log('🔗 Shopify Order Link:', `https://${process.env.SHOPIFY_STORE_NAME}.myshopify.com/admin/orders/${response.data.order.id}`);
+      
+      res.json({
+        success: true,
+        message: 'REAL Shopify order created successfully!',
+        shopify_order: response.data.order,
+        shopify_link: `https://${process.env.SHOPIFY_STORE_NAME}.myshopify.com/admin/orders/${response.data.order.id}`,
+        test_data: testOrderData
+      });
+      
+    } catch (error) {
+      console.error('❌ Real Shopify order creation failed:', error);
+      res.status(500).json({
+        success: false,
+        error: error.message,
+        details: error.response?.data || 'No additional details'
+      });
+    }
+  });
+
   // Real Shopify Order Test Endpoint
   app.post('/api/test-real-shopify-order', async (req, res) => {
     try {
