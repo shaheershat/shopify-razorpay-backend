@@ -2358,6 +2358,71 @@ function getVariantId(planId) {
     }
   });
 
+  // Real Shopify Order Test Endpoint
+  app.post('/api/test-real-shopify-order', async (req, res) => {
+    try {
+      console.log('🧪 Creating REAL Shopify order...');
+      
+      const testOrderData = {
+        id: 'test_sub_' + Date.now(),
+        plan_id: 'plan_SSfug4F5nvQEi5',
+        email: 'test@example.com',
+        phone: '+919876543210',
+        amount: 29900, // Amount in paise (₹299.00)
+        notes: {
+          // Customer info
+          name: 'Test Customer',
+          email: 'test@example.com',
+          phone: '+919876543210',
+          addr: '123 Test Street',
+          city: 'Mumbai',
+          state: 'Maharashtra',
+          pin: '400001',
+          
+          // Product info
+          product_id: '46513506189501',
+          product_title: 'Test Subscription',
+          product_description: 'Test subscription plan',
+          frequency: '3months',
+          
+          // ENHANCED: Box and items selection from cart
+          boxes: 'Two Boxes',
+          items: '2 M pads, 6 L pads, 4 XL pads',
+          selected_plan: '3 Months Plan'
+        }
+      };
+      
+      console.log('📋 Test order data prepared:', {
+        subscriptionId: testOrderData.id,
+        planId: testOrderData.plan_id,
+        customerEmail: testOrderData.email,
+        amount: testOrderData.amount
+      });
+      
+      // Create REAL Shopify order
+      const shopifyOrder = await createShopifyOrder(testOrderData);
+      
+      console.log('✅ SUCCESS: Real Shopify order created!');
+      console.log('🔗 Shopify Order Link:', `https://${process.env.SHOPIFY_STORE_NAME}.myshopify.com/admin/orders/${shopifyOrder.id}`);
+      
+      res.json({
+        success: true,
+        message: 'REAL Shopify order created successfully!',
+        shopify_order: shopifyOrder,
+        shopify_link: `https://${process.env.SHOPIFY_STORE_NAME}.myshopify.com/admin/orders/${shopifyOrder.id}`,
+        test_data: testOrderData
+      });
+      
+    } catch (error) {
+      console.error('❌ Real Shopify order creation failed:', error);
+      res.status(500).json({
+        success: false,
+        error: error.message,
+        details: error.response?.data || 'No additional details'
+      });
+    }
+  });
+
   // Test Order Creation Endpoint (without Shopify API)
   app.post('/api/test-order-simple', async (req, res) => {
     try {
