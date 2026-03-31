@@ -1326,6 +1326,103 @@ app.post('/api/subscriptions/cancel', async (req, res) => {
   }
 });
 
+// Enhanced Test Order Creation (Old Code + New Features)
+app.post('/api/test-enhanced-order', async (req, res) => {
+  try {
+    console.log('🧪 Testing enhanced order creation (old code + new features)...');
+    
+    const { customer_data, product_data, plan_data, box_selection, items_selection, selected_plan } = req.body;
+    
+    // Create a mock subscription object with enhanced data (like your old code)
+    const mockSubscription = {
+      id: 'test_sub_' + Date.now(),
+      plan_id: plan_data?.plan_id || 'plan_SSfug4F5nvQEi5',
+      status: 'authenticated',
+      notes: {
+        // Product info
+        product_id: product_data?.product_id || '46513506189501',
+        product_title: product_data?.title || 'Test Subscription',
+        product_description: product_data?.description || 'Test subscription plan',
+        shopify_store: process.env.SHOPIFY_STORE_NAME,
+        // Customer info
+        customer_email: customer_data?.email || 'test@example.com',
+        customer_phone: customer_data?.phone || '+919876543210',
+        customer_name: customer_data?.name || `${customer_data?.first_name} ${customer_data?.last_name}`,
+        first_name: customer_data?.first_name || 'Test',
+        last_name: customer_data?.last_name || 'User',
+        // Address info
+        address: customer_data?.address?.address1 || '123 Test Street',
+        address_line_2: customer_data?.address?.address2 || '',
+        city: customer_data?.address?.city || 'Mumbai',
+        state: customer_data?.address?.state || 'Maharashtra',
+        postal_code: customer_data?.address?.postal_code || '400001',
+        country: customer_data?.address?.country || 'IN',
+        // Subscription info
+        frequency: plan_data?.frequency || '3',
+        subscription_type: 'mandate',
+        flow: 'autopay',
+        
+        // ENHANCED: Box and items selection from cart (like your old code)
+        boxes: box_selection || 'Two Boxes',
+        items: items_selection || '2 M pads, 6 L pads, 4 XL pads',
+        selected_plan: selected_plan || plan_data?.plan_name || '3 Months Plan'
+      },
+      charge_at: plan_data?.amount || 29900 // Amount in paise (₹299.00)
+    };
+    
+    console.log('📋 Enhanced mock subscription created:', {
+      subscriptionId: mockSubscription.id,
+      customerName: mockSubscription.notes.customer_name,
+      email: mockSubscription.notes.customer_email,
+      phone: mockSubscription.notes.customer_phone,
+      address: `${mockSubscription.notes.address}, ${mockSubscription.notes.city}`,
+      planAmount: mockSubscription.charge_at,
+      // ENHANCED: Log new features
+      boxes: mockSubscription.notes.boxes,
+      items: mockSubscription.notes.items,
+      selectedPlan: mockSubscription.notes.selected_plan
+    });
+    
+    // Create Shopify order using your old code structure but with enhanced features
+    const order = await createShopifyOrder(mockSubscription);
+    
+    res.json({
+      success: true,
+      message: 'Enhanced test order created successfully (old code + new features)',
+      subscription_id: mockSubscription.id,
+      order_id: order.id,
+      order_number: order.order_number,
+      customer_details: {
+        name: mockSubscription.notes.customer_name,
+        email: mockSubscription.notes.customer_email,
+        phone: mockSubscription.notes.customer_phone,
+        address: `${mockSubscription.notes.address}, ${mockSubscription.notes.city}, ${mockSubscription.notes.state} ${mockSubscription.notes.postal_code}` 
+      },
+      order_details: {
+        total_amount: (mockSubscription.charge_at / 100).toFixed(2),
+        product_title: mockSubscription.notes.product_title,
+        variant_id: mockSubscription.notes.product_id
+      },
+      // ENHANCED: Include new features in response
+      enhanced_details: {
+        box_selection: mockSubscription.notes.boxes,
+        items_selection: mockSubscription.notes.items,
+        selected_plan: mockSubscription.notes.selected_plan,
+        frequency: mockSubscription.notes.frequency
+      },
+      shopify_admin_url: `https://${process.env.SHOPIFY_STORE_NAME}/admin/orders/${order.id}` 
+    });
+    
+  } catch (error) {
+    console.error('❌ Enhanced test order creation failed:', error);
+    res.status(400).json({
+      success: false,
+      error: error.message,
+      details: error.response?.data || 'No additional details'
+    });
+  }
+});
+
 // Test Shopify App Order Creation (REAL - Not Simulated)
 app.post('/api/test-shopify-app-order-real', async (req, res) => {
   try {
