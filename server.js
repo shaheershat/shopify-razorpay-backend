@@ -398,44 +398,179 @@ app.post('/api/customer-subscriptions-by-notes', async (req, res) => {
   }
 });
 
-// Get Customer Details
-app.post('/api/customer-details', async (req, res) => {
+// Enhanced Customer Subscriptions Management Endpoint
+app.get('/api/customer-subscriptions-enhanced', async (req, res) => {
   try {
-    const { customer_id } = req.body;
+    const { customer_email, customer_phone } = req.body;
     
-    console.log('Fetching customer details for ID:', customer_id);
+    console.log('🔍 Fetching enhanced subscription data for:', { customer_email, customer_phone });
     
-    if (!customer_id) {
+    if (!customer_email && !customer_phone) {
       return res.status(400).json({ 
         success: false, 
-        error: 'Customer ID is required' 
+        error: 'Customer email or phone is required' 
       });
     }
-
-    // Fetch customer from Shopify
-    const shopifyCustomer = await shopify.rest.get({
-      path: `customers/${customer_id}`
-    });
     
-    console.log('Shopify customer details:', shopifyCustomer.body);
+    try {
+      const subscriptions = await razorpay.subscriptions.all();
+      
+      // Filter subscriptions by checking notes AND customer fields for matching email or phone
+      // Include ALL statuses (active, paused, cancelled, completed)
+      const matchingSubscriptions = subscriptions.items.filter(sub => {
+        // Check email match in multiple places
+        const emailMatch = customer_email && (
+          sub.notes?.customer_email === customer_email || 
+          sub.notes?.email === customer_email ||
+          sub.email === customer_email ||
+          sub.customer_email === customer_email
+        );
+        
+        // Check phone match in multiple places (normalize both for comparison)
+        const notesPhone = normalizePhone(sub.notes?.customer_phone) || 
+                          normalizePhone(sub.notes?.phone) || 
+                          normalizePhone(sub.phone) || 
+                          normalizePhone(sub.customer_phone);
+        const phoneMatch = normalizedCustomerPhone && notesPhone && notesPhone === normalizedCustomerPhone;
+        
+        console.log(`Checking subscription ${sub.id}:`, {
+          status: sub.status,
+          hasNotes: !!sub.notes,
+          hasPlanItem: !!sub.plan_item,
+          emailMatch,
+          phoneMatch,
+          notesEmail: sub.notes?.customer_email,
+          notesPhone: sub.notes?.customer_phone,
+          normalizedNotesPhone: notesPhone,
+          subEmail: sub.email,
+          subPhone: sub.phone,
+          subCustomerEmail: sub.customer_email
+        });
+        
+        return emailMatch || phoneMatch;
+      });
+      
+      console.log('Found all enhanced subscriptions by matching:', matchingSubscriptions.length);
 
-    res.json({
-      success: true,
-      customer: {
-        id: shopifyCustomer.body.id,
-        email: shopifyCustomer.body.email,
-        phone: shopifyCustomer.body.phone,
-        first_name: shopifyCustomer.body.first_name,
-        last_name: shopifyCustomer.body.last_name
-      }
-    });
-    
-  } catch (error) {
-    console.error('Error fetching customer details:', error);
-    res.status(400).json({ 
-      success: false, 
-      error: error.message 
-    });
+      // Format subscription data with safety checks and enhanced details
+      const formattedSubscriptions = [];
+      matchingSubscriptions.forEach(sub => {
+        try {
+          const plan = await razorpay.plans.fetch(sub.plan_id);
+          const amount = plan.item.amount; // Amount in paise
+          
+          formattedSubscriptions.push({
+            // Basic subscription info
+            subscription_id: sub.id,
+            plan_id: sub.plan_id,
+            status: sub.status,
+            start_at: new Date(sub.start_at * 1000).toISOString().split('T')[0],
+            current_period_start: new Date(sub.start_at * 1000).toISOString().split('T')[0],
+            current_period_end: new Date(sub.end_at * 1000).toISOString().split('T')[0],
+            amount: amount, // Amount in paise
+            customer_email: sub.email || sub.notes?.customer_email || 'N/A',
+            customer_phone: sub.phone || sub.notes?.customer_phone || 'N/A',
+            customer_id: sub.customer_id,
+            
+            // Enhanced customer selection details
+            boxes: sub.notes?.boxes || 'Not specified',
+            items: sub.notes?.items || 'Not specified', 
+            selected_plan: sub.notes?.selected_plan || 'Not specified',
+            frequency: sub.notes?.frequency || 'Not specified',
+            
+            // Product details
+            product_id: sub.notes?.product_id || 'product1',
+            product_title: sub.notes?.product_title || 'Subscription Plan',
+            product_description: sub.notes?.product_description || '',
+            
+            // Customer details from notes
+            notes_email: sub.notes?.customer_email || '',
+            notes_phone: sub.notes?.customer_phone || '',
+            
+            // Payment and order tracking
+            total_count: sub.total_count,
+            paid_count: sub.paid_count || 1,
+            remaining_count: sub.remaining_count || (sub.total_count - (sub.paid_count || 1)),
+            next_charge_date: sub.charge_at ? new Date(sub.charge_at * 1000).toISOString().split('T')[0] : null,
+            
+            // Plan details
+            plan_name: plan.item.name,
+            plan_amount: (amount / 100).toFixed(2), // Convert to rupees
+            plan_interval: plan.item.interval,
+            plan_period: plan.item.period,
+            
+            // Shopify order tracking
+            shopify_orders: [] // Will be populated with order lookup
+          });
+          
+          console.log(`✅ Formatted subscription ${sub.id}:`, {
+            boxes: sub.notes?.boxes,
+            items: sub.notes?.items,
+            selected_plan: sub.notes?.selected_plan,
+            frequency: sub.notes?.frequency
+          });
+          
+        } catch (planError) {
+          console.error(`Error fetching plan for subscription ${sub.id}:`, planError);
+          // Still include subscription info even if plan fetch fails
+          formattedSubscriptions.push({
+            subscription_id: sub.id,
+            plan_id: sub.plan_id,
+            status: sub.status,
+            start_at: new Date(sub.start_at * 1000).toISOString().split('T')[0],
+            current_period_start: new Date(sub.start_at * 1000).toISOString().split('T')[0],
+            current_period_end: new Date(sub.end_at * 1000).toISOString().split('T')[0],
+            amount: 0, // Default amount
+            customer_email: sub.email || sub.notes?.customer_email || 'N/A',
+            customer_phone: sub.phone || sub.notes?.customer_phone || 'N/A',
+            customer_id: sub.customer_id,
+            boxes: sub.notes?.boxes || 'Not specified',
+            items: sub.notes?.items || 'Not specified',
+            selected_plan: sub.notes?.selected_plan || 'Not specified',
+            frequency: sub.notes?.frequency || 'Not specified',
+            product_id: sub.notes?.product_id || 'product1',
+            product_title: sub.notes?.product_title || 'Subscription Plan',
+            product_description: sub.notes?.product_description || '',
+            notes_email: sub.notes?.customer_email || '',
+            notes_phone: sub.notes?.customer_phone || '',
+            total_count: sub.total_count,
+            paid_count: sub.paid_count || 1,
+            remaining_count: sub.remaining_count || (sub.total_count - (sub.paid_count || 1)),
+            next_charge_date: sub.charge_at ? new Date(sub.charge_at * 1000).toISOString().split('T')[0] : null,
+            plan_name: 'Plan details unavailable',
+            plan_amount: '0.00',
+            plan_interval: 'unknown',
+            plan_period: 'unknown',
+            shopify_orders: []
+          });
+        }
+      });
+      
+      res.json({
+        success: true,
+        data: {
+          customer_info: {
+            email: customer_email,
+            phone: customer_phone
+          },
+          subscriptions: formattedSubscriptions,
+          summary: {
+            total_subscriptions: matchingSubscriptions.length,
+            active_subscriptions: matchingSubscriptions.filter(sub => sub.status === 'active').length,
+            completed_subscriptions: matchingSubscriptions.filter(sub => sub.status === 'completed').length,
+            cancelled_subscriptions: matchingSubscriptions.filter(sub => sub.status === 'cancelled').length,
+            total_orders: matchingSubscriptions.reduce((sum, sub) => sum + (sub.paid_count || 1), 0)
+          }
+        }
+      });
+      
+    } catch (error) {
+      console.error('Error fetching enhanced subscriptions:', error);
+      res.status(400).json({ 
+        success: false, 
+        error: error.message 
+      });
+    }
   }
 });
 
