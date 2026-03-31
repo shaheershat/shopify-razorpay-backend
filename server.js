@@ -53,22 +53,22 @@ async function startServer() {
 
   // ============= ROUTES =============
 
-// Health check
-app.get('/health', (req, res) => {
-  res.json({ status: 'Backend is running!' });
-});
+  // Health check
+  app.get('/health', (req, res) => {
+    res.json({ status: 'Backend is running!' });
+  });
 
-// Create Razorpay Order
-app.post('/api/create-razorpay-order', async (req, res) => {
-  try {
-    const { amount, currency, receipt } = req.body;
+  // Create Razorpay Order
+  app.post('/api/create-razorpay-order', async (req, res) => {
+    try {
+      const { amount, currency, receipt } = req.body;
 
-    const order = await razorpay.orders.create({
-      amount: amount,
-      currency: currency || 'INR',
-      receipt: receipt,
-      payment_capture: 1
-    });
+      const order = await razorpay.orders.create({
+        amount: amount,
+        currency: currency || 'INR',
+        receipt: receipt,
+        payment_capture: 1
+      });
 
     res.json({
       success: true,
