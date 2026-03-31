@@ -2361,6 +2361,56 @@ function getVariantId(planId) {
     }
   });
 
+  // Shopify Connection Test Endpoint
+  app.post('/api/test-shopify-connection', async (req, res) => {
+    try {
+      console.log('🔍 Testing Shopify connection...');
+      
+      const shopifyUrl = `https://${process.env.SHOPIFY_STORE_NAME}.myshopify.com/admin/api/2023-10/shop.json`;
+      
+      console.log('📋 Shopify config:', {
+        storeName: process.env.SHOPIFY_STORE_NAME,
+        hasToken: !!process.env.SHOPIFY_ACCESS_TOKEN,
+        url: shopifyUrl
+      });
+      
+      const response = await axios.get(shopifyUrl, {
+        headers: {
+          'X-Shopify-Access-Token': process.env.SHOPIFY_ACCESS_TOKEN,
+          'Content-Type': 'application/json'
+        },
+        httpsAgent: new (require('https').Agent)({
+          rejectUnauthorized: false
+        })
+      });
+
+      console.log('✅ Shopify connection successful!');
+      
+      res.json({
+        success: true,
+        message: 'Shopify connection successful!',
+        shop_data: response.data.shop,
+        config: {
+          storeName: process.env.SHOPIFY_STORE_NAME,
+          hasToken: !!process.env.SHOPIFY_ACCESS_TOKEN
+        }
+      });
+      
+    } catch (error) {
+      console.error('❌ Shopify connection failed:', error);
+      res.status(500).json({
+        success: false,
+        error: error.message,
+        details: error.response?.data || 'No additional details',
+        status: error.response?.status,
+        config: {
+          storeName: process.env.SHOPIFY_STORE_NAME,
+          hasToken: !!process.env.SHOPIFY_ACCESS_TOKEN
+        }
+      });
+    }
+  });
+
   // Real Shopify Order Test Endpoint (with fixed amount)
   app.post('/api/test-real-shopify-order-fixed', async (req, res) => {
     try {
