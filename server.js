@@ -2333,70 +2333,58 @@ function getVariantId(planId) {
 }
 
 // Test Order Creation Endpoint
-app.post('/api/test-order', async (req, res) => {
-  try {
-    console.log('🧪 Creating test order...');
-    
-    const testOrderData = {
-      id: 'test_sub_' + Date.now(),
-      plan_id: 'plan_SSfug4F5nvQEi5', // Your existing plan
-      email: 'test@example.com',
-      phone: '+919876543210',
-      notes: {
-        // Customer info
-        name: 'Test Customer',
+  app.post('/api/test-order', async (req, res) => {
+    try {
+      console.log('🧪 Creating test order...');
+      
+      const testOrderData = {
+        id: 'test_sub_' + Date.now(),
+        plan_id: 'plan_SSfug4F5nvQEi5', // Your existing plan
         email: 'test@example.com',
         phone: '+919876543210',
-        addr: '123 Test Street',
-        city: 'Mumbai',
-        state: 'Maharashtra',
-        pin: '400001',
-        
-        // Product info
-        product_id: '46513506189501',
-        product_title: 'Test Subscription',
-        product_description: 'Test subscription plan',
-        frequency: '3months',
-        
-        // ENHANCED: Box and items selection from cart
-        boxes: 'Two Boxes',
-        items: '2 M pads, 6 L pads, 4 XL pads',
-        selected_plan: '3 Months Plan'
-      }
-    };
-    
-    // Create Shopify order
-    const shopifyOrder = await createShopifyOrder(testOrderData);
-    
-    res.json({
-      success: true,
-      message: 'Test order created successfully',
-      shopify_order: shopifyOrder,
-      test_data: testOrderData
-    });
-    
-  } catch (error) {
-    console.error('❌ Test order creation failed:', error);
-    res.status(500).json({
-      success: false,
-      error: error.message
-    });
-  }
-});
-
-// Error handling
-app.use((err, req, res, next) => {
-  console.error('Error:', err);
-  res.status(500).json({ 
-    success: false, 
-    error: 'Internal server error' 
+        notes: {
+          // Customer info
+          name: 'Test Customer',
+          email: 'test@example.com',
+          phone: '+919876543210',
+          addr: '123 Test Street',
+          city: 'Mumbai',
+          state: 'Maharashtra',
+          pin: '400001',
+          
+          // Product info
+          product_id: '46513506189501',
+          product_title: 'Test Subscription',
+          product_description: 'Test subscription plan',
+          frequency: '3months',
+          
+          // ENHANCED: Box and items selection from cart
+          boxes: 'Two Boxes',
+          items: '2 M pads, 6 L pads, 4 XL pads',
+          selected_plan: '3 Months Plan'
+        }
+      };
+      
+      // Create Shopify order
+      const shopifyOrder = await createShopifyOrder(testOrderData);
+      
+      res.json({
+        success: true,
+        message: 'Test order created successfully',
+        shopify_order: shopifyOrder,
+        test_data: testOrderData
+      });
+      
+    } catch (error) {
+      console.error('❌ Test order creation failed:', error);
+      res.status(500).json({
+        success: false,
+        error: error.message
+      });
+    }
   });
-});
 
-// Start server
-const PORT = process.env.PORT || 3000;
-
-async function startServer() {
+  const PORT = process.env.PORT || 3000;
   const server = app.listen(PORT, '0.0.0.0', () => {
     console.log(`✓ Server running on port ${PORT}`);
     console.log(`✓ Health check: http://localhost:${PORT}/health`);
@@ -2409,4 +2397,3 @@ startServer().catch(error => {
   console.error('❌ Failed to start server:', error);
   process.exit(1);
 });
-}
