@@ -427,6 +427,11 @@ class SubscriptionProductUpdated {
         return;
       }
 
+      // Use mock endpoint for testing since Razorpay credentials are not working
+      const useMockEndpoint = true; // Set to false when Razorpay is fixed
+      
+      const endpoint = useMockEndpoint ? `${this.apiBase}/api/create-mock-subscription` : `${this.apiBase}/api/create-subscription-direct`;
+      
       console.log('🚀 Starting subscription flow with:', {
         planId: this.selectedPlan.planId,
         customerEmail,
@@ -437,7 +442,8 @@ class SubscriptionProductUpdated {
         city,
         state,
         postalCode,
-        amount: this.selectedPlan.price
+        amount: this.selectedPlan.price,
+        endpoint: endpoint
       });
 
       // Show loading
@@ -452,7 +458,7 @@ class SubscriptionProductUpdated {
         items: itemsSelection
       });
 
-      const response = await fetch(`${this.apiBase}/api/create-subscription-direct`, {
+      const response = await fetch(endpoint, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -492,8 +498,26 @@ class SubscriptionProductUpdated {
       console.log('📊 API response data:', result);
 
       if (result.success) {
-        console.log('✅ Subscription created, opening Razorpay checkout...');
-        this.openRazorpaySubscriptionCheckout(result.subscription_id, result.key_id, result.amount);
+        console.log('✅ Subscription created, opening checkout...');
+        console.log('💰 Plan amount from backend:', result.amount);
+        console.log('📝 Is mock response:', result.mock);
+        
+        if (result.mock) {
+          // For mock response, show success and skip Razorpay
+          console.log('🧪 Mock subscription - skipping Razorpay');
+          this.showNotification('Mock subscription created successfully! (Testing mode)', 'success');
+          
+          // Close modal
+          this.closeModal();
+          
+          // Show success message
+          setTimeout(() => {
+            this.showNotification('Frontend flow working! Update Razorpay credentials for live payments.', 'info');
+          }, 2000);
+        } else {
+          // For real response, open Razorpay checkout
+          this.openRazorpaySubscriptionCheckout(result.subscription_id, result.key_id, result.amount);
+        }
       } else {
         console.error('❌ API error:', result.error);
         this.showNotification(`Failed to create subscription: ${result.error}`, 'error');

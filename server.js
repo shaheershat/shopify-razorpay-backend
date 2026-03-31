@@ -2181,12 +2181,93 @@ app.post('/api/debug-env', async (req, res) => {
         '2. Ensure RAZORPAY_SECRET_KEY is set in Railway environment variables',
         '3. Ensure SHOPIFY_STORE_NAME is set (without .myshopify.com)',
         '4. Ensure SHOPIFY_ACCESS_TOKEN has write_orders scope',
-        '5. Check Railway deployment logs for any errors'
+        '5. Add PORT=8080 to Railway environment variables',
+        '6. Check if Razorpay account is active and credentials are valid',
+        '7. Verify plan_id exists in your Razorpay account'
       ]
     });
     
   } catch (error) {
     console.error('❌ Debug endpoint failed:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+// Mock Subscription Creation (Bypass Razorpay for testing)
+app.post('/api/create-mock-subscription', async (req, res) => {
+  try {
+    console.log('🧪 Creating mock subscription (bypassing Razorpay)...');
+    
+    const {
+      plan_id,
+      customer_email,
+      customer_phone,
+      product_id,
+      frequency,
+      product_title,
+      product_description,
+      amount,
+      boxes,
+      items,
+      customer_name,
+      first_name,
+      last_name,
+      address,
+      address_line_2,
+      city,
+      state,
+      postal_code,
+      country
+    } = req.body;
+
+    console.log('Mock subscription data:', req.body);
+
+    // Create a mock subscription response
+    const mockSubscription = {
+      id: 'sub_mock_' + Date.now(),
+      plan_id: plan_id,
+      customer_notify: 1,
+      quantity: 1,
+      total_count: parseInt(frequency),
+      start_at: Math.floor(Date.now() / 1000) + 60,
+      expire_by: Math.floor(Date.now() / 1000) + (parseInt(frequency) * 30 * 24 * 60 * 60),
+      status: 'created',
+      notes: {
+        name: customer_name?.substring(0, 50) || 'Test User',
+        email: customer_email?.substring(0, 50) || 'test@example.com',
+        phone: customer_phone?.substring(0, 20) || '+919876543210',
+        product_id: product_id,
+        product_title: product_title || 'Test Subscription',
+        product_description: product_description || '',
+        frequency: frequency,
+        boxes: boxes || 'One Box',
+        items: items || 'Standard configuration',
+        address: address || '123 Test Street',
+        city: city || 'Mumbai',
+        state: state || 'Maharashtra',
+        postal_code: postal_code || '400001',
+        country: country || 'IN'
+      }
+    };
+
+    console.log('✅ Mock subscription created:', mockSubscription.id);
+
+    // Return success response
+    res.json({
+      success: true,
+      subscription_id: mockSubscription.id,
+      key_id: 'rzp_test_mock_key', // Mock key for frontend
+      amount: (amount || 299) * 100, // Convert to paise
+      status: mockSubscription.status,
+      message: 'Mock subscription created - frontend flow working!',
+      mock: true // Indicate this is a mock response
+    });
+
+  } catch (error) {
+    console.error('❌ Mock subscription creation failed:', error);
     res.status(500).json({
       success: false,
       error: error.message
@@ -3610,7 +3691,7 @@ function getVariantId(planId) {
     }
   });
 
-  const PORT = process.env.PORT || 3000;
+  const PORT = process.env.PORT || 8080; // Railway uses 8080 by default
   const server = app.listen(PORT, '0.0.0.0', () => {
     console.log(`✓ Server running on port ${PORT}`);
     console.log(`✓ Health check: http://localhost:${PORT}/health`);
