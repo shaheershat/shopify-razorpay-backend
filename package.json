@@ -7,7 +7,7 @@
     "node": ">=14.0.0"
   },
   "scripts": {
-    "start": "node test-server.js",
+    "start": "node server.js",
     "dev": "node server.js",
     "test": "node test-server.js"
   },
