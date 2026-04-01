@@ -2,7 +2,7 @@
   "name": "shopify-razorpay-backend",
   "version": "1.0.0",
   "description": "Shopify Razorpay subscription backend",
-  "main": "server.js",
+  "main": "index.js",
   "engines": {
     "node": ">=14.0.0"
   },
