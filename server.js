@@ -1693,28 +1693,25 @@ app.post('/api/test-shopify-app-order-real', async (req, res) => {
         message: 'REAL Shopify order created successfully',
         order: response.data.order,
         subscription: mockSubscription,
-        shopifyOrderId: response.data.order.id
+        shopifyOrderId: response.data.order.id,
+        order_details: {
+          total_amount: (mockSubscription.charge_at / 100).toFixed(2),
+          product_title: mockSubscription.notes.product_title,
+          variant_id: mockSubscription.notes.product_id
+        },
+        enhanced_details: {
+          box_selection: mockSubscription.notes.boxes,
+          items_selection: mockSubscription.notes.items,
+          selected_plan: mockSubscription.notes.selected_plan,
+          frequency: mockSubscription.notes.frequency
+        },
+        shopify_admin_url: `https://${process.env.SHOPIFY_STORE_NAME}.myshopify.com/admin/orders/${response.data.order.id}`,
+        note: 'This is a REAL Shopify order - check your Shopify admin!'
       });
     } else {
       console.error('❌ Invalid Shopify response structure:', response.data);
       throw new Error('Invalid Shopify response structure - no order data');
     }
-      },
-      order_details: {
-        total_amount: (mockSubscription.charge_at / 100).toFixed(2),
-        product_title: mockSubscription.notes.product_title,
-        variant_id: mockSubscription.notes.product_id
-      },
-      enhanced_details: {
-        box_selection: mockSubscription.notes.boxes,
-        items_selection: mockSubscription.notes.items,
-        selected_plan: mockSubscription.notes.selected_plan,
-        frequency: mockSubscription.notes.frequency
-      },
-      shopify_admin_url: `https://${process.env.SHOPIFY_STORE_NAME}.myshopify.com/admin/orders/${response.data.order.id}`,
-      note: 'This is a REAL Shopify order - check your Shopify admin!'
-    });
-    
   } catch (error) {
     console.error('❌ REAL Shopify order creation failed!');
     console.error('🔥 Error details:', {
@@ -3700,16 +3697,14 @@ function getVariantId(planId) {
     }
   });
 
-  const PORT = process.env.PORT || 3000;
-  app.listen(PORT, '0.0.0.0', () => {
+  const PORT = process.env.PORT || 8080; // Railway uses 8080 by default
+  const server = app.listen(PORT, '0.0.0.0', () => {
     console.log(`✓ Server running on port ${PORT}`);
     console.log(`✓ Health check: http://localhost:${PORT}/health`);
     console.log(`✓ Environment: ${process.env.NODE_ENV || 'development'}`);
     console.log(`✓ PORT from env: ${process.env.PORT || 'using default 8080'}`);
     console.log(`✓ Host binding: 0.0.0.0 (all interfaces)`);
   });
-
-  return app;
 }
 
 startServer().catch(error => {
