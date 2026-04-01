@@ -52,16 +52,18 @@ try {
     });
   });
   
-  const PORT = process.env.PORT || 3000;
+  const PORT = process.env.PORT || 8080; // Railway uses 8080 by default
   
   console.log(`🚀 Starting Railway server on port ${PORT}...`);
   console.log(`🔗 Binding to 0.0.0.0:${PORT}`);
+  console.log(`🌍 Railway PORT env: ${process.env.PORT || 'not set'}`);
   
   const server = app.listen(PORT, '0.0.0.0', () => {
     console.log(`✅ Railway server running on port ${PORT}`);
     console.log(`🏥 Health: http://0.0.0.0:${PORT}/health`);
     console.log(`🌍 External: http://localhost:${PORT}/health`);
     console.log(`🚀 Ready for Railway traffic!`);
+    console.log(`🔗 Railway URL: https://${process.env.RAILWAY_PUBLIC_URL || 'unknown'}/health`);
   });
   
   server.on('error', (err) => {
