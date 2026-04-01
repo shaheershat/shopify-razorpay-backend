@@ -1,1 +1,1 @@
-web: npm run railway
+web: npm install && node index.js
