@@ -1,1 +1,1 @@
-web: npm install && node index.js
+web: node -e "console.log('Starting server...'); require('./server.js');"
