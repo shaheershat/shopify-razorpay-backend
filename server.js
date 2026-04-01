@@ -2217,7 +2217,7 @@ app.post('/api/debug-env', async (req, res) => {
         '2. Ensure RAZORPAY_SECRET_KEY is set in Railway environment variables',
         '3. Ensure SHOPIFY_STORE_NAME is set (without .myshopify.com)',
         '4. Ensure SHOPIFY_ACCESS_TOKEN has write_orders scope',
-        '5. Add PORT=8080 to Railway environment variables',
+        '5. Add PORT=3000 to Railway environment variables',
         '6. Check if Razorpay account is active and credentials are valid',
         '7. Verify plan_id exists in your Razorpay account'
       ]
@@ -3727,7 +3727,7 @@ function getVariantId(planId) {
     }
   });
 
-  const PORT = process.env.PORT || 8080; // Railway uses 8080 by default
+  const PORT = process.env.PORT || 3000; // Railway uses 3000 by default
   
   console.log(`🚀 Starting server on port ${PORT}...`);
   
@@ -3735,7 +3735,7 @@ function getVariantId(planId) {
     console.log(`✓ Server running on port ${PORT}`);
     console.log(`✓ Health check: http://localhost:${PORT}/health`);
     console.log(`✓ Environment: ${process.env.NODE_ENV || 'development'}`);
-    console.log(`✓ PORT from env: ${process.env.PORT || 'using default 8080'}`);
+    console.log(`✓ PORT from env: ${process.env.PORT || 'using default 3000'}`);
     console.log(`✓ Host binding: 0.0.0.0 (all interfaces)`);
     console.log('🎉 Server startup completed successfully!');
   });
@@ -3773,3 +3773,4 @@ startServer().catch(error => {
   console.error('❌ Failed to start server:', error);
   process.exit(1);
 });
+}

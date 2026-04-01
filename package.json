@@ -7,9 +7,9 @@
     "node": ">=14.0.0"
   },
   "scripts": {
-    "start": "node server.js",
+    "start": "node test-server.js",
     "dev": "node server.js",
-    "test": "node server.js"
+    "test": "node test-server.js"
   },
   "dependencies": {
     "express": "^4.18.2",
