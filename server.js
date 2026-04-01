@@ -3727,7 +3727,7 @@ function getVariantId(planId) {
     }
   });
 
-  const PORT = process.env.PORT || 3000; // Railway uses 3000 by default
+  const PORT = process.env.PORT || 3000;
   
   console.log(`🚀 Starting server on port ${PORT}...`);
   
@@ -3739,7 +3739,7 @@ function getVariantId(planId) {
     console.log(`✓ Host binding: 0.0.0.0 (all interfaces)`);
     console.log('🎉 Server startup completed successfully!');
   });
-  
+
   // Handle server errors
   server.on('error', (error) => {
     console.error('❌ Server error:', error);
@@ -3773,4 +3773,4 @@ startServer().catch(error => {
   console.error('❌ Failed to start server:', error);
   process.exit(1);
 });
-}
+  }
