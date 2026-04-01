@@ -16,10 +16,6 @@ console.log('📋 Environment check:', {
 
 async function startServer() {
   console.log('🔧 Initializing server components...');
-  
-  const app = express();
-  app.use(express.json());
-  app.use(cors());
 
   // Debug logging
   console.log('Environment variables loaded:');
@@ -30,17 +26,15 @@ async function startServer() {
   console.log('SHOPIFY_ACCESS_TOKEN:', process.env.SHOPIFY_ACCESS_TOKEN ? 'SET' : 'NOT SET');
 
   // Check required environment variables
-const requiredEnvVars = ['RAZORPAY_KEY_ID', 'RAZORPAY_SECRET_KEY', 'RAZORPAY_WEBHOOK_SECRET'];
-const missingVars = requiredEnvVars.filter(varName => !process.env[varName]);
+  const requiredEnvVars = ['RAZORPAY_KEY_ID', 'RAZORPAY_SECRET_KEY', 'RAZORPAY_WEBHOOK_SECRET'];
+  const missingVars = requiredEnvVars.filter(varName => !process.env[varName]);
 
-if (missingVars.length > 0) {
-  console.error('Missing required environment variables:', missingVars.join(', '));
-  console.error('Please set these environment variables and restart the server.');
-  process.exit(1);
-}
+  if (missingVars.length > 0) {
+    console.error('Missing required environment variables:', missingVars.join(', '));
+    console.error('Please set these environment variables and restart the server.');
+    process.exit(1);
+  }
 
-// Start server
-async function startServer() {
   const app = express();
   app.use(express.json());
   app.use(cors());
@@ -3773,4 +3767,3 @@ startServer().catch(error => {
   console.error('❌ Failed to start server:', error);
   process.exit(1);
 });
-}
