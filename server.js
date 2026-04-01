@@ -1,21 +1,35 @@
+// Load environment variables first
+require('dotenv').config();
+
 const express = require('express');
-const dotenv = require('dotenv');
 const cors = require('cors');
 const Razorpay = require('razorpay');
-const crypto = require('crypto');
 const axios = require('axios');
 
-dotenv.config();
+console.log('🚀 Starting server...');
+console.log('📋 Environment check:', {
+  NODE_ENV: process.env.NODE_ENV,
+  PORT: process.env.PORT,
+  RAZORPAY_KEY_ID: process.env.RAZORPAY_KEY_ID ? 'SET' : 'NOT SET',
+  SHOPIFY_STORE_NAME: process.env.SHOPIFY_STORE_NAME || 'NOT SET'
+});
 
-// Debug logging
-console.log('Environment variables loaded:');
-console.log('RAZORPAY_KEY_ID:', process.env.RAZORPAY_KEY_ID ? 'SET' : 'NOT SET');
-console.log('RAZORPAY_SECRET_KEY:', process.env.RAZORPAY_SECRET_KEY ? 'SET' : 'NOT SET');
-console.log('RAZORPAY_WEBHOOK_SECRET:', process.env.RAZORPAY_WEBHOOK_SECRET ? 'SET' : 'NOT SET');
-console.log('SHOPIFY_STORE_NAME:', process.env.SHOPIFY_STORE_NAME ? 'SET' : 'NOT SET');
-console.log('SHOPIFY_ACCESS_TOKEN:', process.env.SHOPIFY_ACCESS_TOKEN ? 'SET' : 'NOT SET');
+async function startServer() {
+  console.log('🔧 Initializing server components...');
+  
+  const app = express();
+  app.use(express.json());
+  app.use(cors());
 
-// Check required environment variables
+  // Debug logging
+  console.log('Environment variables loaded:');
+  console.log('RAZORPAY_KEY_ID:', process.env.RAZORPAY_KEY_ID ? 'SET' : 'NOT SET');
+  console.log('RAZORPAY_SECRET_KEY:', process.env.RAZORPAY_SECRET_KEY ? 'SET' : 'NOT SET');
+  console.log('RAZORPAY_WEBHOOK_SECRET:', process.env.RAZORPAY_WEBHOOK_SECRET ? 'SET' : 'NOT SET');
+  console.log('SHOPIFY_STORE_NAME:', process.env.SHOPIFY_STORE_NAME ? 'SET' : 'NOT SET');
+  console.log('SHOPIFY_ACCESS_TOKEN:', process.env.SHOPIFY_ACCESS_TOKEN ? 'SET' : 'NOT SET');
+
+  // Check required environment variables
 const requiredEnvVars = ['RAZORPAY_KEY_ID', 'RAZORPAY_SECRET_KEY', 'RAZORPAY_WEBHOOK_SECRET'];
 const missingVars = requiredEnvVars.filter(varName => !process.env[varName]);
 
@@ -274,7 +288,23 @@ async function startServer() {
 
   // Health check
   app.get('/health', (req, res) => {
-    res.json({ status: 'Backend is running!' });
+    console.log('🏥 Health check requested');
+    res.json({ 
+      status: 'Backend is running!',
+      timestamp: new Date().toISOString(),
+      port: PORT,
+      environment: process.env.NODE_ENV || 'development'
+    });
+  });
+  
+  // Simple test endpoint
+  app.get('/ping', (req, res) => {
+    console.log('🏓 Ping requested');
+    res.json({ 
+      message: 'pong',
+      timestamp: new Date().toISOString(),
+      server: 'shopify-razorpay-backend'
+    });
   });
 
   // Create Razorpay Order
@@ -3698,13 +3728,45 @@ function getVariantId(planId) {
   });
 
   const PORT = process.env.PORT || 8080; // Railway uses 8080 by default
+  
+  console.log(`🚀 Starting server on port ${PORT}...`);
+  
   const server = app.listen(PORT, '0.0.0.0', () => {
     console.log(`✓ Server running on port ${PORT}`);
     console.log(`✓ Health check: http://localhost:${PORT}/health`);
     console.log(`✓ Environment: ${process.env.NODE_ENV || 'development'}`);
     console.log(`✓ PORT from env: ${process.env.PORT || 'using default 8080'}`);
     console.log(`✓ Host binding: 0.0.0.0 (all interfaces)`);
+    console.log('🎉 Server startup completed successfully!');
   });
+  
+  // Handle server errors
+  server.on('error', (error) => {
+    console.error('❌ Server error:', error);
+    if (error.code === 'EADDRINUSE') {
+      console.error(`Port ${PORT} is already in use`);
+    }
+    process.exit(1);
+  });
+  
+  // Handle graceful shutdown
+  process.on('SIGTERM', () => {
+    console.log('🔄 SIGTERM received, shutting down gracefully');
+    server.close(() => {
+      console.log('✓ Server closed');
+      process.exit(0);
+    });
+  });
+  
+  process.on('SIGINT', () => {
+    console.log('🔄 SIGINT received, shutting down gracefully');
+    server.close(() => {
+      console.log('✓ Server closed');
+      process.exit(0);
+    });
+  });
+  
+  return server;
 }
 
 startServer().catch(error => {
