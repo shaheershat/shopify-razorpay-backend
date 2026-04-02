@@ -418,15 +418,27 @@
                 <!-- Subscription Section -->
                 <div id="subscription-section" class="purchase-section" style="display: none;">
                   <div class="subscription-content">
-                    <h3 class="section-heading mb-15">Choose Subscription Plan</h3>
-                    <div class="space-y-3" id="subscriptionOptions">
-                      <!-- Plans will be dynamically loaded based on selected variant -->
-                      <div id="dynamicSubscriptionOptions">
-                        <p style="text-align: center; color: #6b7280; padding: 20px;">
-                          Please select a box option above to see available subscription plans
-                        </p>
+
+                    <!-- Frequency Dropdown -->
+                    <div class="sub-frequency-wrap">
+                      <div class="sub-freq-label">Choose Frequency</div>
+                      <div class="sub-freq-selected" id="subFreqSelected">
+                        <span id="subFreqSelectedText">Select a plan</span>
+                        <span class="sub-freq-arrow">&#8963;</span>
+                      </div>
+                      <div class="sub-freq-dropdown" id="subFreqDropdown" style="display:none;">
+                        <div id="dynamicSubscriptionOptions">
+                          <p style="text-align:center;color:#6b7280;padding:16px;">Select a box above to see plans</p>
+                        </div>
                       </div>
                     </div>
+
+                    <!-- Bullets (updated dynamically) -->
+                    <ul class="sub-bullets" id="subBullets" style="display:none;">
+                      <li>Skip, edit, or cancel anytime</li>
+                      <li id="subBulletFrequency">You will receive an order every month</li>
+                    </ul>
+
                   </div>
                 </div>
 
@@ -462,7 +474,7 @@
                   <!-- Subscription Button (hidden by default) -->
                   <div id="subscription-button" class="action-button-container" style="display: none;">
                     <button id="continueBtn" class="w-full py-3 rounded-lg font-semibold btn-subscribe">
-                      Continue with Subscription
+                      Subscribe Now
                     </button>
                   </div>
                 </div>
@@ -627,40 +639,116 @@
     margin-bottom: 15px;
   }
 
-  /* Subscription Options */
-  .subscription-option {
-    transition: all 0.3s ease;
-    background-color: white;
-    border: 1px solid #e5e7eb;
-    border-radius: 8px;
-    padding: 16px;
+  /* Frequency Dropdown */
+  .sub-frequency-wrap {
+    border: 2px solid #8B1A1A;
+    border-radius: 10px;
+    overflow: visible;
+    margin-bottom: 14px;
+    position: relative;
+    background: #fff;
+  }
+
+  .sub-freq-label {
+    position: absolute;
+    top: -10px;
+    left: 14px;
+    background: #fff;
+    font-size: 12px;
+    color: #6b7280;
+    padding: 0 4px;
+    line-height: 1;
+  }
+
+  .sub-freq-selected {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 16px;
     cursor: pointer;
-    margin-bottom: 12px;
+    font-size: 15px;
+    font-weight: 600;
+    color: #111827;
+    user-select: none;
+  }
+
+  .sub-freq-arrow {
+    font-size: 18px;
+    color: #6b7280;
+    transition: transform 0.2s;
+  }
+
+  .sub-freq-arrow.open {
+    transform: rotate(180deg);
+  }
+
+  .sub-freq-dropdown {
+    border-top: 1px solid #f0f0f0;
+    background: #fff;
+    border-radius: 0 0 8px 8px;
+  }
+
+  /* Subscription Options (inside dropdown) */
+  .subscription-option {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 16px;
+    cursor: pointer;
+    border-bottom: 1px solid #f3f3f3;
+    transition: background 0.15s;
+  }
+
+  .subscription-option:last-child {
+    border-bottom: none;
   }
 
   .subscription-option:hover {
-    border-color: #3b82f6;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
-    transform: translateY(-2px);
+    background: #fef2f2;
   }
 
   .subscription-option.selected {
-    background-color: #eff6ff;
-    border-color: #3b82f6;
-    border-width: 2px;
+    background: #fef2f2;
+  }
+
+  .plan-badge {
+    display: inline-block;
+    font-size: 10px;
+    font-weight: 700;
+    padding: 2px 7px;
+    border-radius: 4px;
+    background: #c0543c;
+    color: #fff;
+    margin-left: 8px;
+    vertical-align: middle;
+    letter-spacing: 0.5px;
   }
 
   .plan-title {
     font-weight: 600;
     color: #111827;
-    font-size: 14px;
-    margin-bottom: 4px;
+    font-size: 15px;
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 4px;
+    margin-bottom: 0;
   }
 
   .plan-description {
     font-size: 13px;
     color: #6b7280;
     margin-bottom: 0;
+  }
+
+  /* Bullet points */
+  .sub-bullets {
+    list-style: disc;
+    padding-left: 18px;
+    margin: 0 0 14px;
+    color: #6b7280;
+    font-size: 13px;
+    line-height: 1.8;
   }
 
   .plan-price {
@@ -987,55 +1075,57 @@
 
                   let html = '';
                   let hasValidPlans = false;
-                  
-                  // Generate HTML for each plan
+                  const badges = ['FAMILY PACK', '', 'POPULAR'];
+
+                  // Generate HTML for each plan (dropdown rows)
                   variant.plans.forEach((plan, index) => {
                     console.log(`📋 Plan ${index + 1}:`, plan);
                     if (plan.planId && plan.frequency && plan.description) {
                       hasValidPlans = true;
                       const priceInRupees = variant.price / 100;
+                      const badge = plan.badge || badges[index] || '';
+                      const badgeHtml = badge ? `<span class="plan-badge">${badge}</span>` : '';
                       html += `
-                        <div class="subscription-option" 
+                        <div class="subscription-option"
                              data-plan="${plan.frequency}"
                              data-variant-id="${variant.id}"
                              data-plan-id="${plan.planId}"
-                             data-price="${variant.price}">
-                          <div class="flex justify-between items-center">
-                            <div>
-                              <h5 class="plan-title">${plan.description}</h5>
-                              <p class="plan-frequency">${plan.frequency.replace('months', ' months').replace(/^./, char => char.toUpperCase())}</p>
-                            </div>
-                            <div class="text-right">
-                              <p class="plan-price">₹${priceInRupees}/month</p>
-                            </div>
-                          </div>
+                             data-price="${variant.price}"
+                             data-description="${plan.description}"
+                             data-badge="${badge}">
+                          <span class="plan-title">${plan.description} ${badgeHtml}</span>
+                          <span class="plan-price">₹${priceInRupees}</span>
                         </div>
                       `;
                     } else {
-                      console.log(`❌ Plan ${index + 1} missing data:`, {
-                        planId: !!plan.planId,
-                        frequency: !!plan.frequency,
-                        description: !!plan.description
-                      });
+                      console.log(`❌ Plan ${index + 1} missing data:`, { planId: !!plan.planId, frequency: !!plan.frequency, description: !!plan.description });
                     }
                   });
 
                   if (!hasValidPlans) {
-                    container.innerHTML = `
-                      <p style="text-align: center; color: #6b7280; padding: 20px;">
-                        No subscription plans configured for ${variant.title}
-                      </p>
-                    `;
+                    container.innerHTML = `<p style="text-align:center;color:#6b7280;padding:16px;">No plans configured for ${variant.title}</p>`;
                     return;
                   }
 
                   container.innerHTML = html;
 
-                  // Re-attach event listeners to new subscription options
+                  // Click: select plan, update selected text, close dropdown, show bullets
                   container.querySelectorAll('.subscription-option').forEach(option => {
                     option.addEventListener('click', function() {
                       document.querySelectorAll('.subscription-option').forEach(opt => opt.classList.remove('selected'));
                       this.classList.add('selected');
+                      // Update selected display
+                      const badge = this.dataset.badge;
+                      const badgeHtml = badge ? `<span class="plan-badge">${badge}</span>` : '';
+                      const priceInRupees = parseInt(this.dataset.price) / 100;
+                      document.getElementById('subFreqSelectedText').innerHTML = `${this.dataset.description} ${badgeHtml} &nbsp;₹${priceInRupees}`;
+                      document.getElementById('subFreqDropdown').style.display = 'none';
+                      document.querySelector('.sub-freq-arrow').classList.remove('open');
+                      // Show bullets and update frequency bullet
+                      const bullets = document.getElementById('subBullets');
+                      if (bullets) bullets.style.display = 'block';
+                      const freqBullet = document.getElementById('subBulletFrequency');
+                      if (freqBullet) freqBullet.textContent = `You will receive an order every ${this.dataset.plan}`;
                     });
                   });
                 }
@@ -1056,6 +1146,22 @@
                   updateSubscriptionPlans(currentTier);
                 }
 
+                // Dropdown toggle
+                document.addEventListener('click', function(e) {
+                  const selected = document.getElementById('subFreqSelected');
+                  const dropdown = document.getElementById('subFreqDropdown');
+                  const arrow = document.querySelector('.sub-freq-arrow');
+                  if (!selected || !dropdown) return;
+                  if (selected.contains(e.target)) {
+                    const isOpen = dropdown.style.display !== 'none';
+                    dropdown.style.display = isOpen ? 'none' : 'block';
+                    if (arrow) arrow.classList.toggle('open', !isOpen);
+                  } else if (!dropdown.contains(e.target)) {
+                    dropdown.style.display = 'none';
+                    if (arrow) arrow.classList.remove('open');
+                  }
+                });
+
                 // Add event listeners to box tier selection
                 document.addEventListener('DOMContentLoaded', function() {
                   // Initial load
@@ -1063,12 +1169,19 @@
                     handleTierChange();
                   }, 100);
 
-                  // Listen for tier changes
+                  // Listen for tier changes — reset dropdown selection when box changes
                   const tierCards = document.querySelectorAll('.cbox__tier');
                   tierCards.forEach(card => {
                     card.addEventListener('click', function() {
                       setTimeout(() => {
                         handleTierChange();
+                        // Reset dropdown UI
+                        const freqText = document.getElementById('subFreqSelectedText');
+                        if (freqText) freqText.textContent = 'Select a plan';
+                        const dropdown = document.getElementById('subFreqDropdown');
+                        if (dropdown) dropdown.style.display = 'none';
+                        const bullets = document.getElementById('subBullets');
+                        if (bullets) bullets.style.display = 'none';
                       }, 50);
                     });
                   });

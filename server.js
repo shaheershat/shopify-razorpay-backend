@@ -528,11 +528,11 @@ async function createShopifyOrder(subscriptionData) {
             taxable: true
           }
         ],
-        note: `📦 Box Selection: ${subscriptionData.notes?.boxes || 'One Box'}
-📋 Items Selected: ${subscriptionData.notes?.items || 'Standard configuration'}
-📅 Subscription Plan: ${subscriptionInfo.product_title || 'Not specified'}
-📋 Frequency: ${subscriptionInfo.frequency || 'Not specified'}
-💰 Subscription ID: ${subscriptionData.id}
+        note: `📦 Box: ${subscriptionData.notes?.boxes || 'Not specified'}
+🧴 Pads Selected: ${subscriptionData.notes?.items || 'Standard configuration'}
+📅 Plan: ${subscriptionInfo.product_title || 'Not specified'}
+🔁 Frequency: Every ${subscriptionInfo.frequency || '?'} month(s)
+🆔 Subscription ID: ${subscriptionData.id}
 👤 Customer: ${customerName}`,
         tags: ['subscription', 'razorpay', 'active', 'mandate-flow'],
         shipping_address: {
