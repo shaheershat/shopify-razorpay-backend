@@ -52,7 +52,7 @@ try {
     });
   });
   
-  const PORT = process.env.PORT || 8080; // Railway uses 8080 by default
+  const PORT = process.env.PORT || 3000;
   
   console.log(`🚀 Starting Railway server on port ${PORT}...`);
   console.log(`🔗 Binding to 0.0.0.0:${PORT}`);

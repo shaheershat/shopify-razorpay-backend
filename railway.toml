@@ -1,0 +1,6 @@
+[deploy]
+startCommand = "node railway.js"
+
+[deploy.healthcheck]
+path = "/health"
+timeout = 30
