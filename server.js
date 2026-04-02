@@ -193,10 +193,15 @@ app.post('/api/create-subscription-direct', async (req, res) => {
         email: (customer_email || '').substring(0, 50),
         phone: (customer_phone || '').substring(0, 20),
         product_id: product_id,
-        product_title: product_title || 'Subscription',
+        product_title: (product_title || 'Subscription').substring(0, 50),
         frequency: String(freqInt),
-        boxes: (boxes || 'Not specified').substring(0, 80),
-        items: (items || 'Standard configuration').substring(0, 100),
+        boxes: (boxes || 'Not specified').substring(0, 60),
+        items: (items || 'Standard configuration').substring(0, 80),
+        address: (address || '').substring(0, 80),
+        city: (city || '').substring(0, 30),
+        state: (state || '').substring(0, 30),
+        postal_code: (postal_code || '').substring(0, 10),
+        country: country || 'IN',
       }
     };
     
