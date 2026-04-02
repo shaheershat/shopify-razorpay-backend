@@ -26,8 +26,61 @@ if (missingVars.length > 0) {
 }
 
 const app = express();
-app.use(express.json());
 app.use(cors());
+
+// Webhook needs raw body for signature verification — must come before express.json()
+app.post('/webhooks/razorpay', express.raw({ type: 'application/json' }), async (req, res) => {
+  try {
+    const webhookSecret = process.env.RAZORPAY_WEBHOOK_SECRET;
+    const signature = req.headers['x-razorpay-signature'];
+    const rawBody = req.body.toString('utf8');
+
+    // Verify webhook signature
+    const expectedSignature = crypto
+      .createHmac('sha256', webhookSecret)
+      .update(rawBody)
+      .digest('hex');
+
+    if (expectedSignature !== signature) {
+      console.error('❌ Webhook signature mismatch');
+      return res.status(400).json({ error: 'Invalid signature' });
+    }
+
+    const event = JSON.parse(rawBody);
+    console.log('✅ Razorpay webhook received:', event.event);
+
+    // Handle subscription.charged — fires every time a payment is collected
+    if (event.event === 'subscription.charged') {
+      const payment = event.payload.payment.entity;
+      const subscription = event.payload.subscription.entity;
+
+      console.log('💳 Subscription charged:', {
+        subscriptionId: subscription.id,
+        paymentId: payment.id,
+        amount: payment.amount
+      });
+
+      // Fetch full subscription to get notes with customer/address data
+      const fullSubscription = await razorpay.subscriptions.fetch(subscription.id);
+
+      try {
+        const order = await createShopifyOrder(fullSubscription);
+        console.log(`✅ Shopify order ${order.order_number} created for subscription ${subscription.id}`);
+      } catch (orderErr) {
+        console.error('❌ Shopify order creation failed:', orderErr.message);
+        // Still return 200 so Razorpay doesn't retry endlessly
+      }
+    }
+
+    res.status(200).json({ received: true });
+
+  } catch (error) {
+    console.error('❌ Webhook error:', error.message);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.use(express.json());
 
 // Initialize Razorpay
 const razorpay = new Razorpay({
