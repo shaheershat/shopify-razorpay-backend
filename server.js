@@ -127,29 +127,23 @@ app.post('/api/create-subscription-direct', async (req, res) => {
     console.log('🔄 Creating subscription via direct HTTP call...');
     
     // Split data into multiple notes to stay under 255 character limit
+    // Parse frequency integer from strings like "1", "1 Month", "Every 1 month"
+    const freqInt = parseInt(frequency) || 1;
+
     const subscriptionData = {
       plan_id: plan_id,
       customer_notify: 1,
       quantity: 1,
-      total_count: parseInt(frequency),
-      start_at: Math.floor(Date.now() / 1000) + 60, // Start in 1 minute
-      expire_by: Math.floor(Date.now() / 1000) + (parseInt(frequency) * 30 * 24 * 60 * 60), // Expire after frequency months
+      total_count: 120, // 120 cycles = effectively indefinite (10 years for monthly)
       notes: {
-        // Customer info (shortened)
-        name: customer_name.substring(0, 50),
-        email: customer_email.substring(0, 50),
-        phone: customer_phone.substring(0, 20),
-        
-        // Product info
+        name: (customer_name || '').substring(0, 50),
+        email: (customer_email || '').substring(0, 50),
+        phone: (customer_phone || '').substring(0, 20),
         product_id: product_id,
-        product_title: product_title || 'Test Subscription',
-        product_description: product_description || '',
-        frequency: frequency,
-        
-        // ENHANCED: Box and items selection from cart
-        boxes: boxes || 'One Box',
-        items: items || 'Standard configuration',
-        selected_plan: plan.item?.name || 'Not specified',
+        product_title: product_title || 'Subscription',
+        frequency: String(freqInt),
+        boxes: (boxes || 'Not specified').substring(0, 80),
+        items: (items || 'Standard configuration').substring(0, 100),
       }
     };
     
