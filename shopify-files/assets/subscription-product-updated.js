@@ -188,6 +188,21 @@ class SubscriptionProductUpdated {
     const padSelection = this.getPadSelection();
     const boxLabel = boxTier ? `${boxTier.label} (Tier ${boxTier.tier})` : 'Not selected';
 
+    // Store for passing to order creation after payment
+    const customerData = {
+      customer_name: `${firstName} ${lastName}`,
+      first_name: firstName,
+      last_name: lastName,
+      customer_email: customerEmail,
+      customer_phone: customerPhone,
+      address: addressLine1,
+      address_line_2: addressLine2,
+      city,
+      state,
+      postal_code: postalCode,
+      country: 'IN'
+    };
+
     console.log('🚀 Creating subscription:', { plan, boxTier, padSelection });
     this.showNotification('Creating subscription...', 'info');
 
@@ -197,27 +212,13 @@ class SubscriptionProductUpdated {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           plan_id: plan.planId,
-          customer_email: customerEmail,
-          customer_phone: customerPhone,
           product_id: plan.variantId,
           frequency: plan.frequency,
           product_title: plan.name,
           amount: plan.price,
-          // Box & pad details
           boxes: boxLabel,
           items: padSelection,
-          box_tier: boxTier?.tier || '',
-          box_variant_id: boxTier?.variantId || '',
-          // Address
-          customer_name: `${firstName} ${lastName}`,
-          first_name: firstName,
-          last_name: lastName,
-          address: addressLine1,
-          address_line_2: addressLine2,
-          city,
-          state,
-          postal_code: postalCode,
-          country: 'IN'
+          ...customerData
         })
       });
 
@@ -228,7 +229,7 @@ class SubscriptionProductUpdated {
           this.showNotification('Mock subscription created! (Test mode)', 'success');
           this.closeModal();
         } else {
-          this.openRazorpayCheckout(result.subscription_id, result.key_id, result.amount, plan, boxLabel, padSelection);
+          this.openRazorpayCheckout(result.subscription_id, result.key_id, result.amount, plan, boxLabel, padSelection, customerData);
         }
       } else {
         this.showNotification(`Failed: ${result.error}`, 'error');
@@ -239,7 +240,7 @@ class SubscriptionProductUpdated {
     }
   }
 
-  openRazorpayCheckout(subscriptionId, keyId, amount, plan, boxLabel, padSelection) {
+  openRazorpayCheckout(subscriptionId, keyId, amount, plan, boxLabel, padSelection, customerData) {
     if (typeof Razorpay === 'undefined') {
       this.showNotification('Payment gateway not available', 'error');
       return;
@@ -252,11 +253,39 @@ class SubscriptionProductUpdated {
       description: `${plan.name} - Every ${plan.frequency} month(s)`,
       image: 'https://luvwish.in/cdn/shop/files/Logo_1_250x250.png',
       amount: amount,
-      handler: (response) => {
+      handler: async (response) => {
         if (response.razorpay_subscription_id && response.razorpay_payment_id) {
-          this.showNotification('Subscription activated successfully!', 'success');
+          this.showNotification('Payment done! Creating your order...', 'info');
           this.closeModal();
-          setTimeout(() => { window.location.href = '/pages/subscription-management'; }, 2000);
+          try {
+            const orderRes = await fetch(`${this.apiBase}/api/order-from-payment`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                razorpay_payment_id: response.razorpay_payment_id,
+                razorpay_subscription_id: response.razorpay_subscription_id,
+                razorpay_signature: response.razorpay_signature,
+                ...customerData,
+                boxes: boxLabel,
+                items: padSelection,
+                product_title: plan.name,
+                frequency: plan.frequency,
+                variant_id: plan.variantId
+              })
+            });
+            const orderResult = await orderRes.json();
+            if (orderResult.success) {
+              this.showNotification(`Order #${orderResult.order_number} created! Subscription active.`, 'success');
+              setTimeout(() => { window.location.href = '/pages/subscription-management'; }, 3000);
+            } else {
+              this.showNotification('Payment done but order creation failed. We will contact you.', 'warning');
+              console.error('Order creation failed:', orderResult.error);
+            }
+          } catch (err) {
+            console.error('Order creation error:', err);
+            this.showNotification('Payment done! Order will be created shortly.', 'success');
+            setTimeout(() => { window.location.href = '/pages/subscription-management'; }, 3000);
+          }
         } else {
           this.showNotification('Subscription activation failed', 'error');
         }

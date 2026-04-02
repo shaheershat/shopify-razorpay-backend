@@ -134,7 +134,7 @@ app.post('/api/create-subscription-direct', async (req, res) => {
       plan_id: plan_id,
       customer_notify: 1,
       quantity: 1,
-      total_count: 120, // 120 cycles = effectively indefinite (10 years for monthly)
+      total_count: 200, // effectively indefinite
       notes: {
         name: (customer_name || '').substring(0, 50),
         email: (customer_email || '').substring(0, 50),
@@ -413,6 +413,84 @@ app.post('/api/customer-subscriptions-by-notes', async (req, res) => {
       success: false, 
       error: error.message 
     });
+  }
+});
+
+// Called from frontend after Razorpay payment handler fires
+app.post('/api/order-from-payment', async (req, res) => {
+  try {
+    const {
+      razorpay_payment_id,
+      razorpay_subscription_id,
+      razorpay_signature,
+      // Customer & address (sent from frontend since notes may be trimmed)
+      customer_name,
+      first_name,
+      last_name,
+      customer_email,
+      customer_phone,
+      address,
+      address_line_2,
+      city,
+      state,
+      postal_code,
+      country,
+      boxes,
+      items,
+      product_title,
+      frequency,
+      variant_id
+    } = req.body;
+
+    console.log('📦 order-from-payment called:', { razorpay_payment_id, razorpay_subscription_id });
+
+    if (!razorpay_payment_id || !razorpay_subscription_id || !razorpay_signature) {
+      return res.status(400).json({ success: false, error: 'Missing payment details' });
+    }
+
+    // Verify signature: HMAC-SHA256(payment_id + "|" + subscription_id, secret)
+    const expectedSignature = crypto
+      .createHmac('sha256', process.env.RAZORPAY_SECRET_KEY)
+      .update(`${razorpay_payment_id}|${razorpay_subscription_id}`)
+      .digest('hex');
+
+    if (expectedSignature !== razorpay_signature) {
+      console.error('❌ Signature mismatch');
+      return res.status(400).json({ success: false, error: 'Invalid payment signature' });
+    }
+
+    console.log('✅ Payment signature verified');
+
+    // Fetch subscription from Razorpay to get plan details
+    const subscription = await razorpay.subscriptions.fetch(razorpay_subscription_id);
+
+    // Merge frontend address data into subscription object so createShopifyOrder can use it
+    subscription.notes = {
+      ...subscription.notes,
+      name: customer_name || `${first_name || ''} ${last_name || ''}`.trim(),
+      email: customer_email,
+      phone: customer_phone,
+      address: address,
+      address_line_2: address_line_2 || '',
+      city: city,
+      state: state,
+      postal_code: postal_code,
+      country: country || 'IN',
+      boxes: boxes || subscription.notes?.boxes || 'Not specified',
+      items: items || subscription.notes?.items || 'Standard configuration',
+      product_title: product_title || subscription.notes?.product_title || 'Subscription',
+      frequency: frequency || subscription.notes?.frequency || '1',
+      product_id: variant_id || subscription.notes?.product_id || ''
+    };
+
+    const order = await createShopifyOrder(subscription);
+
+    console.log('✅ Shopify order created after payment:', order.id);
+    res.json({ success: true, order_id: order.id, order_number: order.order_number });
+
+  } catch (error) {
+    console.error('❌ order-from-payment failed:', error.message);
+    res.status(500).json({ success: false, error: error.message });
   }
 });
 
