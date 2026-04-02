@@ -49,6 +49,27 @@ app.post('/webhooks/razorpay', express.raw({ type: 'application/json' }), async 
     const event = JSON.parse(rawBody);
     console.log('✅ Razorpay webhook received:', event.event);
 
+    // Handle subscription.activated — fires when subscription is first activated
+    if (event.event === 'subscription.activated') {
+      const subscription = event.payload.subscription.entity;
+
+      console.log('🎯 Subscription activated:', {
+        subscriptionId: subscription.id,
+        status: subscription.status
+      });
+
+      // Fetch full subscription to get notes with customer/address data
+      const fullSubscription = await razorpay.subscriptions.fetch(subscription.id);
+
+      try {
+        const order = await createShopifyOrder(fullSubscription);
+        console.log(`✅ Shopify order ${order.order_number} created for activated subscription ${subscription.id}`);
+      } catch (orderErr) {
+        console.error('❌ Shopify order creation failed for activation:', orderErr.message);
+        // Still return 200 so Razorpay doesn't retry endlessly
+      }
+    }
+
     // Handle subscription.charged — fires every time a payment is collected
     if (event.event === 'subscription.charged') {
       const payment = event.payload.payment.entity;
@@ -225,6 +246,16 @@ app.post('/api/create-subscription-direct', async (req, res) => {
       state,
       postal_code
     });
+
+    // Create initial Shopify order immediately since we're taking first payment
+    try {
+      console.log('🛒 Creating initial Shopify order...');
+      const order = await createShopifyOrder(subscription);
+      console.log('✅ Initial Shopify order created:', order.order_number);
+    } catch (orderError) {
+      console.error('❌ Initial order creation failed:', orderError.message);
+      // Don't fail the subscription creation if order fails
+    }
 
     // Return subscription info with correct amount from plan (convert to paise for frontend)
     res.json({
