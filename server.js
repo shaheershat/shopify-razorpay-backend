@@ -178,7 +178,7 @@ app.post('/api/create-subscription-direct', async (req, res) => {
       });
     }
 
-    // First, fetch the plan details to get the correct amount
+    // First, fetch plan details to get correct amount
     const plan = await razorpay.plans.fetch(plan_id);
     console.log('Fetched plan details:', plan);
 
@@ -244,46 +244,63 @@ app.post('/api/create-subscription-direct', async (req, res) => {
       address,
       city,
       state,
-      postal_code
+      postal_code,
+      country
     });
 
-    // Create initial Shopify order immediately since we're taking first payment
-    try {
-      console.log('🛒 Creating initial Shopify order...');
-      const order = await createShopifyOrder(subscription);
-      console.log('✅ Initial Shopify order created:', order.order_number);
-    } catch (orderError) {
-      console.error('❌ Initial order creation failed:', orderError.message);
-      // Don't fail the subscription creation if order fails
-    }
+    // IMPORTANT: Do NOT create Shopify order yet
+    // Wait for subscription.activated webhook to create order
+    console.log('� Subscription created, waiting for payment completion webhook...');
 
-    // Return subscription info with correct amount from plan (convert to paise for frontend)
+    // Return subscription details for Razorpay checkout
     res.json({
       success: true,
-      subscription_id: subscription.id,
-      key_id: process.env.RAZORPAY_KEY_ID,
-      amount: plan.item.amount, // Already in paise from Razorpay
-      status: subscription.status,
-      message: 'Subscription created - complete mandate to activate'
+      subscription: {
+        id: subscription.id,
+        status: subscription.status,
+        plan_id: subscription.plan_id,
+        customer_id: subscription.customer_id,
+        current_start: subscription.current_start,
+        current_end: subscription.current_end,
+        ended_at: subscription.ended_at,
+        quantity: subscription.quantity,
+        notes: subscription.notes,
+        short_url: subscription.short_url,
+        has_trial: subscription.has_trial,
+        charge_at: subscription.charge_at,
+        end_at: subscription.end_at,
+        auth_attempts: subscription.auth_attempts,
+        total_count: subscription.total_count,
+        paid_count: subscription.paid_count,
+        remaining_count: subscription.remaining_count,
+        start_at: subscription.start_at,
+        created_at: subscription.created_at,
+        expire_by: subscription.expire_by,
+        offer_id: subscription.offer_id,
+        customer_notify: subscription.customer_notify,
+        tax_percent: subscription.tax_percent,
+        change_requested: subscription.change_requested,
+        billing_method: subscription.billing_method,
+        recurring: subscription.recurring,
+        coupon_id: subscription.coupon_id,
+        added_at: subscription.added_at,
+        start_at_approx: subscription.start_at_approx
+      },
+      // Include Razorpay key for frontend
+      razorpay_key_id: process.env.RAZORPAY_KEY_ID,
+      // Include customer details for Razorpay checkout
+      customer: {
+        name: customer_name,
+        email: customer_email,
+        contact: customer_phone
+      }
     });
 
   } catch (error) {
-    console.error('❌ Error creating direct subscription:', error);
-    console.error('🔥 Error details:', {
-      message: error.message,
-      stack: error.stack,
-      razorpayError: error.error,
-      statusCode: error.statusCode,
-      description: error.description
-    });
-    res.status(400).json({ 
+    console.error('Error creating direct subscription:', error);
+    res.status(500).json({ 
       success: false, 
-      error: error.message || 'Unknown error occurred',
-      details: {
-        statusCode: error.statusCode,
-        description: error.description,
-        razorpayError: error.error
-      }
+      error: error.message 
     });
   }
 });

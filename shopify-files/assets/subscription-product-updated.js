@@ -201,91 +201,77 @@ class SubscriptionProductUpdated {
           customer_phone: customerPhone,
           product_id: plan.variantId,
           frequency: plan.frequency,
-          product_title: plan.name,
-          amount: plan.price,
-          // Box & pad details
+          product_title: `${boxLabel} - ${plan.name}`,
+          product_description: `${boxLabel} subscription with ${padSelection}`,
+          amount: plan.price * 100, // Convert to paise
+          // ENHANCED: Box and items selection
           boxes: boxLabel,
           items: padSelection,
-          box_tier: boxTier?.tier || '',
-          box_variant_id: boxTier?.variantId || '',
-          // Address
+          // Address fields
           customer_name: `${firstName} ${lastName}`,
           first_name: firstName,
           last_name: lastName,
           address: addressLine1,
           address_line_2: addressLine2,
-          city,
-          state,
+          city: city,
+          state: state,
           postal_code: postalCode,
           country: 'IN'
         })
       });
 
       const result = await response.json();
+      console.log('Subscription creation result:', result);
 
       if (result.success) {
-        if (result.mock) {
-          this.showNotification('Mock subscription created! (Test mode)', 'success');
-          this.closeModal();
-        } else {
-          this.openRazorpayCheckout(result.subscription_id, result.key_id, result.amount, plan, boxLabel, padSelection);
-        }
+        // Open Razorpay checkout for payment
+        this.openRazorpayCheckout(result.subscription, result.customer, plan);
       } else {
-        this.showNotification(`Failed: ${result.error}`, 'error');
+        this.showNotification(result.error || 'Failed to create subscription', 'error');
       }
     } catch (error) {
-      console.error('❌ Subscription error:', error);
-      this.showNotification(`Error: ${error.message}`, 'error');
+      console.error('Error creating subscription:', error);
+      this.showNotification('Failed to create subscription', 'error');
     }
   }
 
-  openRazorpayCheckout(subscriptionId, keyId, amount, plan, boxLabel, padSelection) {
-    if (typeof Razorpay === 'undefined') {
-      this.showNotification('Payment gateway not available', 'error');
-      return;
-    }
-
+  openRazorpayCheckout(subscription, customer, plan) {
+    console.log('🔓 Opening Razorpay checkout for subscription:', subscription);
+    
     const options = {
-      key: keyId,
-      subscription_id: subscriptionId,
-      name: 'Luvwish Subscription',
-      description: `${plan.name} - Every ${plan.frequency} month(s)`,
+      key: this.razorpayKeyId,
+      subscription_id: subscription.id,
+      name: `${plan.name} - ${plan.frequency}`,
+      description: `Subscription for ${plan.frequency}`,
       image: 'https://luvwish.in/cdn/shop/files/Logo_1_250x250.png',
-      amount: amount,
       handler: (response) => {
-        if (response.razorpay_subscription_id && response.razorpay_payment_id) {
-          this.showNotification('Subscription activated successfully!', 'success');
-          this.closeModal();
-          setTimeout(() => { window.location.href = '/pages/subscription-management'; }, 2000);
-        } else {
-          this.showNotification('Subscription activation failed', 'error');
-        }
+        console.log('✅ Payment successful:', response);
+        this.showNotification('Payment successful! Subscription activated.', 'success');
+        this.closeModal();
+        // Redirect to success page or show confirmation
+        setTimeout(() => {
+          window.location.href = '/pages/subscription-success';
+        }, 2000);
       },
       modal: {
-        ondismiss: () => this.showNotification('Subscription setup cancelled', 'warning'),
-        escape: true,
-        confirm_close: true
+        ondismiss: () => {
+          console.log('❌ Payment cancelled by user');
+          this.showNotification('Payment cancelled. Subscription was not activated.', 'warning');
+          // Note: The subscription remains in "created" state but won't be charged
+        }
       },
-      notes: {
-        subscription_type: 'mandate',
-        plan_name: plan.name,
-        plan_frequency: plan.frequency,
-        boxes: boxLabel,
-        items: padSelection
+      notes: subscription.notes,
+      theme: {
+        color: '#E93F7F'
       },
-      theme: { color: '#8B1A1A' },
       prefill: {
-        email: this.customerEmail || document.getElementById('customerEmail')?.value || '',
-        contact: this.customerPhone || document.getElementById('customerPhone')?.value || ''
+        email: customer.email,
+        contact: customer.phone
       }
     };
 
-    try {
-      const rzp = new Razorpay(options);
-      rzp.open();
-    } catch (error) {
-      this.showNotification(`Failed to open payment: ${error.message}`, 'error');
-    }
+    const razorpay = new Razorpay(options);
+    razorpay.open();
   }
 
   showNotification(message, type = 'info') {

@@ -18,6 +18,7 @@ class SubscriptionManagement {
   }
   
   init() {
+    this.initializeCustomerLookup();
     this.loadSubscriptions();
     this.initializeModal();
     this.initializeTabListeners();
@@ -35,6 +36,149 @@ class SubscriptionManagement {
         zIndex: window.getComputedStyle(e.target).zIndex
       });
     });
+  }
+
+  // Customer lookup functionality
+  initializeCustomerLookup() {
+    // Create customer lookup UI if it doesn't exist
+    if (!document.getElementById('customerLookup')) {
+      const lookupHTML = `
+        <div id="customerLookup" class="bg-white rounded-lg shadow-md p-4 mb-6">
+          <h3 class="text-lg font-bold mb-4">Customer Lookup</h3>
+          <div class="flex gap-4 mb-4">
+            <div class="flex-1">
+              <input type="email" id="lookupEmail" placeholder="Enter email address" 
+                     class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+            </div>
+            <div class="flex-1">
+              <input type="tel" id="lookupPhone" placeholder="Enter phone number" 
+                     class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+            </div>
+          </div>
+          <button id="lookupButton" class="w-full bg-blue-600 text-white py-2 px-4 rounded-lg font-semibold hover:bg-blue-700 transition-colors">
+            Search Subscriptions
+          </button>
+          <div id="lookupResult" class="mt-4 hidden">
+            <!-- Results will be shown here -->
+          </div>
+        </div>
+      `;
+      
+      // Insert the lookup UI at the top of the main container
+      const mainContainer = document.querySelector('.container');
+      if (mainContainer) {
+        mainContainer.insertAdjacentHTML('afterbegin', lookupHTML);
+      }
+      
+      // Add event listeners
+      this.initializeLookupListeners();
+    }
+  }
+
+  initializeLookupListeners() {
+    const lookupButton = document.getElementById('lookupButton');
+    const lookupEmail = document.getElementById('lookupEmail');
+    const lookupPhone = document.getElementById('lookupPhone');
+    
+    if (lookupButton) {
+      lookupButton.addEventListener('click', () => this.performCustomerLookup());
+    }
+    
+    // Handle Enter key in input fields
+    [lookupEmail, lookupPhone].forEach(input => {
+      if (input) {
+        input.addEventListener('keypress', (e) => {
+          if (e.key === 'Enter') {
+            this.performCustomerLookup();
+          }
+        });
+      }
+    });
+  }
+
+  async performCustomerLookup() {
+    const email = document.getElementById('lookupEmail')?.value?.trim();
+    const phone = document.getElementById('lookupPhone')?.value?.trim();
+    const resultDiv = document.getElementById('lookupResult');
+    
+    if (!email && !phone) {
+      this.showLookupResult('Please enter either email or phone number', 'error');
+      return;
+    }
+    
+    // Show loading state
+    if (resultDiv) {
+      resultDiv.innerHTML = '<div class="text-center py-4"><div class="inline-block animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div> Searching...</div>';
+      resultDiv.classList.remove('hidden');
+    }
+    
+    try {
+      // Call your backend to search subscriptions
+      const response = await fetch(`${this.apiBase}/api/customer-subscriptions-by-notes`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          customer_email: email,
+          customer_phone: phone
+        })
+      });
+      
+      const result = await response.json();
+      
+      if (result.success && result.subscriptions && result.subscriptions.length > 0) {
+        // Update the current customer data with found customer info
+        this.customerEmail = result.subscriptions[0].customer_email;
+        this.customerPhone = result.subscriptions[0].customer_phone;
+        
+        // Display found subscriptions
+        this.displayFoundSubscriptions(result.subscriptions);
+        this.showLookupResult(`Found ${result.subscriptions.length} subscription(s) for ${result.subscriptions[0].customer_email}`, 'success');
+      } else {
+        this.showLookupResult('No subscriptions found for this customer', 'warning');
+      }
+      
+    } catch (error) {
+      console.error('Lookup error:', error);
+      this.showLookupResult('Error searching for subscriptions', 'error');
+    }
+  }
+
+  displayFoundSubscriptions(subscriptions) {
+    // Hide the current logged-in customer's subscriptions and show found ones
+    this.subscriptions = subscriptions;
+    this.renderSubscriptions();
+    
+    // Update the customer info display
+    const customerInfo = document.getElementById('customerInfo');
+    if (customerInfo) {
+      customerInfo.innerHTML = `
+        <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+          <h4 class="font-semibold text-blue-900 mb-2">Found Customer</h4>
+          <p><strong>Email:</strong> ${subscriptions[0].customer_email}</p>
+          <p><strong>Phone:</strong> ${subscriptions[0].customer_phone}</p>
+        </div>
+      `;
+    }
+  }
+
+  showLookupResult(message, type = 'info') {
+    const resultDiv = document.getElementById('lookupResult');
+    if (resultDiv) {
+      const colors = {
+        success: 'bg-green-50 border-green-200 text-green-800',
+        error: 'bg-red-50 border-red-200 text-red-800',
+        warning: 'bg-yellow-50 border-yellow-200 text-yellow-800',
+        info: 'bg-blue-50 border-blue-200 text-blue-800'
+      };
+      
+      resultDiv.innerHTML = `
+        <div class="p-4 rounded-lg ${colors[type]}">
+          <p class="font-medium">${message}</p>
+        </div>
+      `;
+    }
   }
   
   initializeTabListeners() {
