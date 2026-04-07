@@ -367,7 +367,7 @@
               <script src="https://checkout.razorpay.com/v1/razorpay.js"></script>
               
               <!-- Load Updated Subscription JavaScript -->
-              <script src="{{ 'subscription-product-updated.js' | asset_url }}" defer></script>
+              <script src="{{ 'subscription-product-mandate.js' | asset_url }}" defer></script>
               
               <!-- Initialize with correct key -->
               <script>
@@ -395,7 +395,10 @@
                     </label>
                     <label class="toggle-option">
                       <input type="radio" name="purchase_type" value="subscription">
-                      <span class="toggle-label">Subscribe & save</span>
+                      <span class="toggle-label">
+                        <span class="toggle-label-title">Subscribe & Save</span><br>
+                        <span class="toggle-label-sub">Subscribe & Get more discount.</span>
+                      </span>
                     </label>
                   </div>
                 </div>
@@ -403,12 +406,6 @@
                 <!-- One-time Purchase Section -->
                 <div id="one-time-section" class="purchase-section">
                   <div class="one-time-content">
-                    <div class="price-display mb-15">
-                      <span class="current-price">{{ product.price | money }}</span>
-                      {%- if product.compare_at_price > product.price -%}
-                        <span class="compare-price">{{ product.compare_at_price | money }}</span>
-                      {%- endif -%}
-                    </div>
                     <div class="one-time-description mb-15">
                       <p>One-time purchase with no commitment</p>
                     </div>
@@ -484,18 +481,17 @@
               <div class="modal-overlay" id="subscriptionModal">
                 <div class="modal-content">
                   <button class="modal-close" onclick="closeModal()">&times;</button>
-                  <h2 class="modal-header">Complete Your Subscription</h2>
                   
                   <!-- Customer Info -->
                   <div class="mb-6">
                     <h3 class="section-heading">Customer Information</h3>
                     <div class="space-y-3">
                       {%- if customer -%}
-                        <input type="email" id="customerEmail" value="{{ customer.email }}" class="w-full border rounded-lg px-4 py-2 input-field" readonly>
-                        <input type="tel" id="customerPhone" value="{{ customer.phone }}" class="w-full border rounded-lg px-4 py-2 input-field">
+                        <input type="email" id="customerEmail" value="{{ customer.email }}" class="w-full border rounded px-4 py-2 input-field" readonly>
+                        <input type="tel" id="customerPhone" value="{{ customer.phone }}" class="w-full border rounded px-4 py-2 input-field">
                       {%- else -%}
-                        <input type="email" id="customerEmail" placeholder="Email Address" class="w-full border rounded-lg px-4 py-2 input-field">
-                        <input type="tel" id="customerPhone" placeholder="Phone Number" class="w-full border rounded-lg px-4 py-2 input-field">
+                        <input type="email" id="customerEmail" placeholder="Email Address" class="w-full border rounded px-4 py-2 input-field">
+                        <input type="tel" id="customerPhone" placeholder="Phone Number" class="w-full border rounded px-4 py-2 input-field">
                       {%- endif -%}
                     </div>
                   </div>
@@ -505,22 +501,22 @@
                     <h3 class="section-heading">Shipping Address</h3>
                     <div class="space-y-3">
                       <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
-                        <input type="text" id="firstName" placeholder="First Name" class="w-full border rounded-lg px-4 py-2 input-field">
-                        <input type="text" id="lastName" placeholder="Last Name" class="w-full border rounded-lg px-4 py-2 input-field">
+                        <input type="text" id="firstName" placeholder="First Name" class="w-full border rounded px-4 py-2 input-field">
+                        <input type="text" id="lastName" placeholder="Last Name" class="w-full border rounded px-4 py-2 input-field">
                       </div>
-                      <input type="text" id="addressLine1" placeholder="Address Line 1" class="w-full border rounded-lg px-4 py-2 input-field">
-                      <input type="text" id="addressLine2" placeholder="Address Line 2 (Optional)" class="w-full border rounded-lg px-4 py-2 input-field">
+                      <input type="text" id="addressLine1" placeholder="Address Line 1" class="w-full border rounded px-4 py-2 input-field">
+                      <input type="text" id="addressLine2" placeholder="Address Line 2 (Optional)" class="w-full border rounded px-4 py-2 input-field">
                       <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
-                        <input type="text" id="city" placeholder="City" class="w-full border rounded-lg px-4 py-2 input-field">
-                        <input type="text" id="state" placeholder="State" class="w-full border rounded-lg px-4 py-2 input-field">
-                        <input type="text" id="postalCode" placeholder="PIN Code" class="w-full border rounded-lg px-4 py-2 input-field">
+                        <input type="text" id="city" placeholder="City" class="w-full border rounded px-4 py-2 input-field">
+                        <input type="text" id="state" placeholder="State" class="w-full border rounded px-4 py-2 input-field">
+                        <input type="text" id="postalCode" placeholder="PIN Code" class="w-full border rounded px-4 py-2 input-field">
                       </div>
                     </div>
                   </div>
 
                   <!-- Subscribe Button -->
-                  <div class="flex gap-3">
-                    <button id="subscribeNowBtn" class="flex-1 py-3 rounded-lg font-semibold btn-subscribe">
+                  <div class="flex gap-3" style="padding-top:10px;">
+                    <button id="subscribeNowBtn" class="flex-1 py-3 rounded font-semibold btn-subscribe">
                       Subscribe with Auto-pay
                     </button>
                   </div>
@@ -528,454 +524,397 @@
               </div>
 
               <!-- Styles for Subscription Integration -->
-              <style>
-  /* Purchase Type Toggle */
-  .purchase-type-toggle {
-    margin-bottom: 20px;
-  }
+             <style>
+              .subscription-purchase-options {
+                padding: 0;
+                border: none;
+                border-radius: 0;
+                background: transparent;
+              }
 
-  .toggle-container {
-    display: flex;
-    flex-direction: column;
-    background: transparent;
-    border-radius: 0;
-    padding: 0;
-    gap: 12px;
-  }
+              /* ── Toggle / Card Options ── */
+              .purchase-type-toggle {
+                margin-bottom: 12px;
+              }
 
-  .toggle-option {
-    flex: 1;
-    position: relative;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    padding: 16px;
-    border: 2px solid #e5e7eb;
-    border-radius: 12px;
-    background: white;
-    transition: all 0.3s ease;
-  }
+              .toggle-container {
+                display: flex;
+                flex-direction: column;
+                gap: 10px;
+              }
 
-  .toggle-option:hover {
-    border-color: #d1d5db;
-  }
+              .toggle-option {
+                display: flex;
+                align-items: center;
+                gap: 14px;
+                padding: 18px 20px;
+                border: 1.5px solid #e5e7eb;
+                border-radius: 8px;
+                background: #fff;
+                cursor: pointer;
+                transition: border-color 0.2s, background 0.2s;
+                position: relative;
+              }
 
-  .toggle-option input[type="radio"] {
-    position: relative;
-    opacity: 1;
-    width: 24px;
-    height: 24px;
-    cursor: pointer;
-    appearance: none;
-    -webkit-appearance: none;
-    -moz-appearance: none;
-    background: white;
-    border: 2px solid #999;
-    border-radius: 50%;
-    outline: none;
-    transition: all 0.3s ease;
-    flex-shrink: 0;
-    margin: 0;
-  }
+              .toggle-option:hover {
+                border-color: #E93F7F;
+              }
 
-  .toggle-option input[type="radio"]:hover {
-    border-color: #666;
-  }
+              /* One-time card: never gets pink background */
+              .toggle-option[for-type="one-time"].selected,
+              input[value="one-time"]:checked ~ .toggle-label {
+                border-color: #E93F7F;
+                background: #fff;
+              }
 
-  .toggle-option input[type="radio"]:checked {
-    border-color: #991b1b;
-    background: white;
-    box-shadow: inset 0 0 0 4px white, inset 0 0 0 6px #991b1b;
-  }
+              /* Selected state driven by JS adding .selected class */
+              .toggle-option.selected {
+                border-color: #E93F7F;
+                background: #fdf1f1;
+              }
 
-  .toggle-label {
-    display: block;
-    font-size: 16px;
-    font-weight: 500;
-    color: #111827;
-    cursor: pointer;
-    margin: 0;
-    flex: 1;
-  }
+              .toggle-option:has(input[value="subscription"]).selected {
+                border-bottom: 0px;
+                border-radius: 8px 8px 0px 0px;
+              }
 
-  .toggle-option input[type="radio"]:checked + .toggle-label {
-    font-weight: 600;
-  }
+              /* Override: one-time card stays white even when selected */
+              .toggle-option:has(input[value="one-time"]).selected {
+                background: #fff;
+              }
 
-  .toggle-option.selected {
-    border-color: #991b1b;
-    border-width: 2px;
-    background: #fef2f2;
-  }
+              /* Radio button */
+              .toggle-option input[type="radio"] {
+                appearance: none;
+                -webkit-appearance: none;
+                width: 22px;
+                height: 22px;
+                border: 2px solid #ccc;
+                border-radius: 50%;
+                background: #fff;
+                flex-shrink: 0;
+                margin: 0;
+                cursor: pointer;
+                transition: border-color 0.2s;
+              }
 
-  /* Purchase Sections */
-  .purchase-section {
-    margin-bottom: 20px;
-  }
+              .toggle-option input[type="radio"]:checked {
+                border-color: #E93F7F;
+                background: #fff;
+                box-shadow: inset 0 0 0 5px #E93F7F;
+              }
 
-  .price-display {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    margin-bottom: 15px;
-  }
+              /* Label + price row inside each card */
+              .toggle-label {
+                flex: 1;
+                display: flex;
+                flex-direction: column;
+                gap: 2px;
+              }
 
-  .current-price {
-    font-size: 24px;
-    font-weight: 700;
-    color: #111827;
-  }
+              .toggle-label-title {
+                font-size: 16px;
+                font-weight: 700;
+                color: #111;
+              }
 
-  .compare-price {
-    font-size: 16px;
-    color: #6b7280;
-    text-decoration: line-through;
-  }
+              .toggle-label-sub {
+                font-size: 13px;
+                color: #E93F7F;
+                font-weight: 500;
+              }
 
-  .one-time-description {
-    color: #6b7280;
-    font-size: 14px;
-    margin-bottom: 15px;
-  }
+              .toggle-label-price {
+                font-size: 18px;
+                font-weight: 700;
+                color: #111;
+                white-space: nowrap;
+                margin-left: auto;
+              }
 
-  /* Frequency Dropdown */
-  .sub-frequency-wrap {
-    border: 2px solid #8B1A1A;
-    border-radius: 10px;
-    overflow: visible;
-    margin-bottom: 14px;
-    position: relative;
-    background: #fff;
-  }
+              /* ── Purchase Sections ── */
+              .purchase-section {
+                margin-bottom: 0;
+              }
 
-  .sub-freq-label {
-    position: absolute;
-    top: -10px;
-    left: 14px;
-    background: #fff;
-    font-size: 12px;
-    color: #6b7280;
-    padding: 0 4px;
-    line-height: 1;
-  }
+              .one-time-description {
+                display: none;
+              }
 
-  .sub-freq-selected {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 14px 16px;
-    cursor: pointer;
-    font-size: 15px;
-    font-weight: 600;
-    color: #111827;
-    user-select: none;
-  }
+              /* ── Subscription card wraps everything inside the pink box ── */
+              #subscription-section {
+                background: #fdf1f1;
+                border: 1.5px solid #E93F7F;
+                border-top: none; /* merges visually with the toggle card above */
+                border-radius: 0 0 14px 14px;
+                padding: 16px 20px 20px;
+                margin-top: -14px; /* pull up under the subscribe card */
+              }
 
-  .sub-freq-arrow {
-    font-size: 18px;
-    color: #6b7280;
-    transition: transform 0.2s;
-  }
+              /* ── Frequency Dropdown (inside subscription card) ── */
+              .sub-frequency-wrap {
+                border: 1.5px solid #E93F7F;
+                border-radius: 8px;
+                overflow: visible;
+                margin: 14px 0 10px;
+                position: relative;
+                background: #fff;
+              }
 
-  .sub-freq-arrow.open {
-    transform: rotate(180deg);
-  }
+              .sub-freq-label {
+                position: absolute;
+                top: -10px;
+                left: 14px;
+                background: #fdf1f1;
+                font-size: 12px;
+                color: #888;
+                padding: 0 5px;
+                line-height: 1;
+              }
 
-  .sub-freq-dropdown {
-    border-top: 1px solid #f0f0f0;
-    background: #fff;
-    border-radius: 0 0 8px 8px;
-  }
+              .sub-freq-selected {
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                padding: 16px 18px;
+                cursor: pointer;
+                font-size: 15px;
+                font-weight: 700;
+                color: #111;
+                user-select: none;
+              }
 
-  /* Subscription Options (inside dropdown) */
-  .subscription-option {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 14px 16px;
-    cursor: pointer;
-    border-bottom: 1px solid #f3f3f3;
-    transition: background 0.15s;
-  }
+              .sub-freq-arrow {
+                font-size: 20px;
+                color: #555;
+                transform: rotate(180deg);
+                transition: transform 0.2s;
+              }
 
-  .subscription-option:last-child {
-    border-bottom: none;
-  }
+              .sub-freq-arrow.open {
+                transform: rotate(0deg);
+              }
 
-  .subscription-option:hover {
-    background: #fef2f2;
-  }
+              .sub-freq-dropdown {
+                border-top: 1px solid #f0f0f0;
+                background: #fff;
+                border-radius: 0 0 10px 10px;
+              }
 
-  .subscription-option.selected {
-    background: #fef2f2;
-  }
+              .subscription-option {
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                padding: 14px 18px;
+                cursor: pointer;
+                border-bottom: 1px solid #f3f3f3;
+                transition: background 0.15s;
+              }
 
-  .plan-badge {
-    display: inline-block;
-    font-size: 10px;
-    font-weight: 700;
-    padding: 2px 7px;
-    border-radius: 4px;
-    background: #c0543c;
-    color: #fff;
-    margin-left: 8px;
-    vertical-align: middle;
-    letter-spacing: 0.5px;
-  }
+              .subscription-option:last-child { border-bottom: none; }
+              .subscription-option:hover { background: #fdf1f1; }
+              .subscription-option.selected { background: #fdf1f1; }
 
-  .plan-title {
-    font-weight: 600;
-    color: #111827;
-    font-size: 15px;
-    display: flex;
-    align-items: center;
-    flex-wrap: wrap;
-    gap: 4px;
-    margin-bottom: 0;
-  }
+              .plan-title {
+                font-weight: 600;
+                color: #111;
+                font-size: 15px;
+                display: flex;
+                align-items: center;
+                flex-wrap: wrap;
+                gap: 6px;
+              }
 
-  .plan-description {
-    font-size: 13px;
-    color: #6b7280;
-    margin-bottom: 0;
-  }
+              .plan-badge {
+                font-size: 10px;
+                font-weight: 700;
+                padding: 3px 8px;
+                border-radius: 5px;
+                background: #E93F7F;
+                color: #fff;
+                letter-spacing: 0.4px;
+              }
 
-  /* Bullet points */
-  .sub-bullets {
-    list-style: disc;
-    padding-left: 18px;
-    margin: 0 0 14px;
-    color: #6b7280;
-    font-size: 13px;
-    line-height: 1.8;
-  }
+              .plan-price {
+                font-size: 16px;
+                font-weight: 700;
+                color: #111;
+              }
 
-  .plan-price {
-    font-size: 16px;
-    font-weight: 700;
-    color: #FF4FA3;
-    margin: 0;
-  }
+              /* ── Bullets ── */
+              .sub-bullets {
+                list-style: disc;
+                padding-left: 18px;
+                margin: 0 0 14px;
+                color: #6b7280;
+                font-size: 13px;
+                line-height: 1.9;
+              }
 
-  /* Buttons */
-  .btn-subscribe {
-    background-color: #FF4FA3 !important;
-    color: white !important;
-    font-size: 16px;
-    border-radius: 10px;
-    font-weight: 600;
-    transition: all 0.3s ease;
-    border: none;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-    padding: 12px 24px;
-    cursor: pointer;
-    width: 100%;
-  }
+              /* ── Buttons ── */
+              .btn-subscribe {
+                background-color: black !important;
+                color: #fff !important;
+                font-size: 16px;
+                font-weight: 700;
+                border: none;
+                border-radius: 50px;
+                padding: 16px 24px;
+                width: 100%;
+                cursor: pointer;
+                transition: background 0.2s, transform 0.15s;
+                box-shadow: none;
+              }
 
-  .btn-subscribe:hover {
-    background-color: black !important;
-    color: white;
-    transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-  }
+              .btn-subscribe:hover {
+                background-color: black !important;
+                transform: translateY(-1px);
+              }
 
-  /* Modal Styles */
-  .modal-overlay {
-    display: none;
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background-color: rgba(0, 0, 0, 0.5);
-    z-index: 999;
-    justify-content: center;
-    align-items: center;
-  }
+              /* ── action button container: inside subscription box ── */
+              #subscription-section {
+              background: #fdf1f1;
+              border: 1.5px solid #E93F7F;
+              border-top: none;
+              border-radius: 0 0 14px 14px;
+              padding: 16px 20px 20px;
+              margin-top: -14px;
+            }
 
-  .modal-overlay.active {
-    display: flex;
-  }
+            #subscription-button {
+              background: #fdf1f1;
+              border: 1.5px solid #E93F7F;
+              border-top: none;
+              border-radius: 0 0 14px 14px;
+              padding: 0 20px 20px;
+              margin-top: -14px;
+            }
 
-  .modal-content {
-    background-color: white;
-    border-radius: 12px;
-    padding: 2rem;
-    max-width: 500px;
-    width: 90%;
-    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
-    animation: slideUp 0.3s ease;
-    position: relative;
-  }
+              /* ── Modal ── */
+              .modal-overlay {
+                display: none;
+                position: fixed;
+                inset: 0;
+                background: rgba(0,0,0,0.5);
+                z-index: 999;
+                justify-content: center;
+                align-items: center;
+              }
 
-  @keyframes slideUp {
-    from {
-      transform: translateY(20px);
-      opacity: 0;
-    }
-    to {
-      transform: translateY(0);
-      opacity: 1;
-    }
-  }
+              .modal-overlay.active { display: flex; }
 
-  .modal-header {
-    font-size: 1.5rem;
-    font-weight: 700;
-    color: #111827;
-    margin-bottom: 1.5rem;
-  }
+              .modal-content {
+                background: #fff;
+                border-radius: 14px;
+                padding: 2rem;
+                max-width: 500px;
+                width: 90%;
+                box-shadow: 0 20px 40px rgba(0,0,0,0.15);
+                position: relative;
+                animation: slideUp 0.25s ease;
+              }
 
-  .modal-close {
-    position: absolute;
-    top: 1rem;
-    right: 1rem;
-    background: none;
-    border: none;
-    font-size: 1.5rem;
-    cursor: pointer;
-    color: #6b7280;
-    transition: color 0.3s ease;
-  }
+              @keyframes slideUp {
+                from { transform: translateY(16px); opacity: 0; }
+                to   { transform: translateY(0);    opacity: 1; }
+              }
 
-  .modal-close:hover {
-    color: #111827;
-  }
+              .modal-header {
+                font-size: 1.4rem;
+                font-weight: 700;
+                color: #111;
+                margin-bottom: 1.5rem;
+              }
 
-  .section-heading {
-    font-size: 14px;
-    font-weight: 600;
-    color: #111827;
-    margin-bottom: 12px;
-  }
+              .modal-close {
+                position: absolute;
+                top: 1rem;
+                right: 1rem;
+                background: none;
+                border: none;
+                font-size: 1.5rem;
+                cursor: pointer;
+                color: #999;
+                transition: color 0.2s;
+              }
 
-  .input-field {
-    font-size: 14px;
-    transition: all 0.3s ease;
-    border-color: #d1d5db;
-    color: #111827;
-    border: 1px solid #d1d5db;
-    padding: 10px;
-    border-radius: 8px;
-    width: 100%;
-  }
+              .modal-close:hover { color: #111; }
 
-  .input-field:focus {
-    outline: none;
-    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
-    border-width: 2px;
-  }
+              .section-heading {
+                font-size: 14px;
+                font-weight: 600;
+                color: #111;
+                margin-bottom: 10px;
+              }
 
-  .space-y-3 > * + * {
-    margin-top: 12px;
-  }
+              /* ── Modal input: 4px border ── */
+              .input-field {
+                font-size: 14px;
+                color: #111;
+                border: 4px solid #d1d5db;
+                padding: 10px 14px;
+                border-radius: 8px;
+                width: 100%;
+                transition: border-color 0.2s, box-shadow 0.2s;
+              }
 
-  .flex {
-    display: flex;
-  }
+              .input-field:focus {
+                outline: none;
+                border-color: #E93F7F;
+                box-shadow: 0 0 0 3px rgba(192,57,43,0.1);
+              }
 
-  .justify-between {
-    justify-content: space-between;
-  }
+              /* ── Utility ── */
+              .space-y-3 > * + * { margin-top: 12px; }
+              .flex { display: flex; }
+              .justify-between { justify-content: space-between; }
+              .items-center { align-items: center; }
+              .grid { display: grid; }
+              .grid-cols-1 { grid-template-columns: repeat(1, minmax(0, 1fr)); }
+              .gap-3 { gap: 12px; }
+              .w-full { width: 100%; }
+              .text-right { text-align: right; }
 
-  .items-center {
-    align-items: center;
-  }
+              @media (min-width: 768px) {
+                .md\:grid-cols-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+                .md\:grid-cols-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+              }
 
-  .grid {
-    display: grid;
-  }
-
-  .grid-cols-1 {
-    grid-template-columns: repeat(1, minmax(0, 1fr));
-  }
-
-  .grid-cols-2 {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .grid-cols-3 {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-  }
-
-  .gap-3 {
-    gap: 12px;
-  }
-
-  .w-full {
-    width: 100%;
-  }
-
-  .text-right {
-    text-align: right;
-  }
-
-  /* Mobile Responsive */
-  @media (max-width: 768px) {
-    .toggle-label {
-      font-size: 13px;
-    }
-    
-    .current-price {
-      font-size: 20px;
-    }
-    
-    .variant-title {
-      font-size: 18px;
-      font-weight: 600;
-      color: #111827;
-      margin-bottom: 12px;
-      padding-bottom: 8px;
-      border-bottom: 1px solid #e5e7eb;
-    }
-    
-    .variant-section {
-      background: #f9fafb;
-      border: 1px solid #e5e7eb;
-      border-radius: 8px;
-      padding: 16px;
-    }
-    
-    .plan-frequency {
-      font-size: 12px;
-      color: #6b7280;
-      margin-bottom: 4px;
-    }
-    
-    .plan-title {
-      font-size: 14px;
-      font-weight: 600;
-      color: #111827;
-      margin-bottom: 2px;
-    }
-  }
-  
-  .plan-price {
-    font-size: 14px;
-  }
-</style>
+              /* ── Mobile ── */
+              @media (max-width: 768px) {
+                .toggle-label-title { font-size: 14px; }
+                .toggle-label-price { font-size: 16px; }
+              }
+            </style>
 
               <!-- JavaScript for Subscription Integration -->
               <script>
                 // Purchase type toggle
                 document.querySelectorAll('input[name="purchase_type"]').forEach(radio => {
-                  radio.addEventListener('change', function() {
-                    const purchaseType = this.value;
-                    
-                    if (purchaseType === 'one-time') {
-                      document.getElementById('one-time-section').style.display = 'block';
-                      document.getElementById('subscription-section').style.display = 'none';
-                      document.getElementById('one-time-button').style.display = 'block';
-                      document.getElementById('subscription-button').style.display = 'none';
-                    } else {
-                      document.getElementById('one-time-section').style.display = 'none';
-                      document.getElementById('subscription-section').style.display = 'block';
-                      document.getElementById('one-time-button').style.display = 'none';
-                      document.getElementById('subscription-button').style.display = 'block';
-                    }
+                    radio.addEventListener('change', function() {
+                      const purchaseType = this.value;
+
+                      // Sync active border/background on cards
+                      document.querySelectorAll('.toggle-option').forEach(opt => opt.classList.remove('selected'));
+                      this.closest('.toggle-option').classList.add('selected');
+
+                      if (purchaseType === 'one-time') {
+                        document.getElementById('one-time-section').style.display = 'block';
+                        document.getElementById('subscription-section').style.display = 'none';
+                        document.getElementById('one-time-button').style.display = 'block';
+                        document.getElementById('subscription-button').style.display = 'none';
+                      } else {
+                        document.getElementById('one-time-section').style.display = 'none';
+                        document.getElementById('subscription-section').style.display = 'block';
+                        document.getElementById('one-time-button').style.display = 'none';
+                        document.getElementById('subscription-button').style.display = 'block';
+                      }
+                    });
                   });
-                });
+
+                  // Set initial selected state on page load
+                  const checkedRadio = document.querySelector('input[name="purchase_type"]:checked');
+                  if (checkedRadio) checkedRadio.closest('.toggle-option').classList.add('selected');
 
                 // Plan selection handler
                 document.querySelectorAll('.subscription-option').forEach(option => {
@@ -1020,7 +959,7 @@
                   customerPhone: {%- if customer -%}'{{ customer.phone }}'{%- else -%}null{%- endif -%}
                 };
 
-                // Store all variant data for dynamic loading
+                // Store all variant data for dynamic loading (9 variants total)
                 window.variantData = [
                   {%- for variant in product.variants -%}
                     {
@@ -1028,22 +967,33 @@
                       title: "{{ variant.title | escape }}",
                       price: {{ variant.price }},
                       plans: [
-                        {
-                          planId: "{{ variant.metafields.custom.razorpay_plan_id_1 }}",
-                          frequency: "{{ variant.metafields.custom.frequency_1 }}",
-                          description: "{{ variant.metafields.custom.description_1 }}"
-                        },
-                        {
-                          planId: "{{ variant.metafields.custom.razorpay_plan_id_2 }}",
-                          frequency: "{{ variant.metafields.custom.frequency_2 }}",
-                          description: "{{ variant.metafields.custom.description_2 }}"
-                        },
-                        {
-                          planId: "{{ variant.metafields.custom.razorpay_plan_id_3 }}",
-                          frequency: "{{ variant.metafields.custom.frequency_3 }}",
-                          description: "{{ variant.metafields.custom.description_3 }}"
-                        }
-                      ]
+                        // Box 1 variants (3 plans)
+                        {%- if variant.title contains "Box 1 Monthly" -%}
+                          { planId: "{{ variant.metafields.custom.razorpay_plan_id_1 }}", frequency: "monthly", description: "Pay monthly", variantId: {{ variant.id }} }
+                        {%- elsif variant.title contains "Box 1 2-Months" -%}
+                          { planId: "{{ variant.metafields.custom.razorpay_plan_id_1 }}", frequency: "2months", description: "Pay every 2 months", variantId: {{ variant.id }} }
+                        {%- elsif variant.title contains "Box 1 3-Months" -%}
+                          { planId: "{{ variant.metafields.custom.razorpay_plan_id_1 }}", frequency: "3months", description: "Pay every 3 months", variantId: {{ variant.id }} }
+                        {%- endif -%}
+                        
+                        // Box 2 variants (3 plans)
+                        {%- if variant.title contains "Box 2 Monthly" -%}
+                          { planId: "{{ variant.metafields.custom.razorpay_plan_id_1 }}", frequency: "monthly", description: "Pay monthly", variantId: {{ variant.id }} }
+                        {%- elsif variant.title contains "Box 2 2-Months" -%}
+                          { planId: "{{ variant.metafields.custom.razorpay_plan_id_1 }}", frequency: "2months", description: "Pay every 2 months", variantId: {{ variant.id }} }
+                        {%- elsif variant.title contains "Box 2 3-Months" -%}
+                          { planId: "{{ variant.metafields.custom.razorpay_plan_id_1 }}", frequency: "3months", description: "Pay every 3 months", variantId: {{ variant.id }} }
+                        {%- endif -%}
+                        
+                        // Box 3 variants (3 plans)
+                        {%- if variant.title contains "Box 3 Monthly" -%}
+                          { planId: "{{ variant.metafields.custom.razorpay_plan_id_1 }}", frequency: "monthly", description: "Pay monthly", variantId: {{ variant.id }} }
+                        {%- elsif variant.title contains "Box 3 2-Months" -%}
+                          { planId: "{{ variant.metafields.custom.razorpay_plan_id_1 }}", frequency: "2months", description: "Pay every 2 months", variantId: {{ variant.id }} }
+                        {%- elsif variant.title contains "Box 3 3-Months" -%}
+                          { planId: "{{ variant.metafields.custom.razorpay_plan_id_1 }}", frequency: "3months", description: "Pay every 3 months", variantId: {{ variant.id }} }
+                        {%- endif -%}
+                      ].filter(plan => plan.planId && plan.frequency && plan.description)
                     }{%- unless forloop.last -%},{%- endunless -%}
                   {%- endfor -%}
                 ];
@@ -1058,33 +1008,36 @@
                   // Debug: Log what tier we're looking for
                   console.log(`🎯 Looking for tier: ${tierNumber}`);
                   
-                  // Map tier to variant (1 -> variant 1, 2 -> variant 2, 3 -> variant 3)
-                  const variantIndex = tierNumber - 1;
-                  const variant = window.variantData[variantIndex];
+                  // Find all variants for this tier
+                  const tierVariants = window.variantData.filter(variant => {
+                    const title = variant.title.toLowerCase();
+                    return title.includes(`box ${tierNumber}`) || title.includes(`box${tierNumber}`);
+                  });
                   
-                  console.log(`🔍 Found variant:`, variant);
+                  console.log(`🔍 Found ${tierVariants.length} variants for tier ${tierNumber}:`, tierVariants);
                   
-                  if (!variant) {
+                  if (tierVariants.length === 0) {
                     container.innerHTML = `
                       <p style="text-align: center; color: #6b7280; padding: 20px;">
-                        No subscription plans available for this tier
+                        No subscription plans available for Box ${tierNumber}
                       </p>
                     `;
                     return;
                   }
 
                   let html = '';
-                  let hasValidPlans = false;
                   const badges = ['FAMILY PACK', '', 'POPULAR'];
 
-                  // Generate HTML for each plan (dropdown rows)
-                  variant.plans.forEach((plan, index) => {
-                    console.log(`📋 Plan ${index + 1}:`, plan);
-                    if (plan.planId && plan.frequency && plan.description) {
-                      hasValidPlans = true;
+                  // Generate HTML for each variant (each variant = one plan)
+                  tierVariants.forEach((variant, index) => {
+                    console.log(`📋 Plan ${index + 1}:`, variant);
+                    
+                    if (variant.plans && variant.plans.length > 0) {
+                      const plan = variant.plans[0]; // Each variant has one plan
                       const priceInRupees = variant.price / 100;
                       const badge = plan.badge || badges[index] || '';
                       const badgeHtml = badge ? `<span class="plan-badge">${badge}</span>` : '';
+                      
                       html += `
                         <div class="subscription-option"
                              data-plan="${plan.frequency}"
@@ -1098,12 +1051,12 @@
                         </div>
                       `;
                     } else {
-                      console.log(`❌ Plan ${index + 1} missing data:`, { planId: !!plan.planId, frequency: !!plan.frequency, description: !!plan.description });
+                      console.log(`❌ Variant ${variant.title} missing plan data`);
                     }
                   });
 
-                  if (!hasValidPlans) {
-                    container.innerHTML = `<p style="text-align:center;color:#6b7280;padding:16px;">No plans configured for ${variant.title}</p>`;
+                  if (html === '') {
+                    container.innerHTML = `<p style="text-align:center;color:#6b7280;padding:16px;">No plans configured for Box ${tierNumber}</p>`;
                     return;
                   }
 
@@ -1125,7 +1078,10 @@
                       const bullets = document.getElementById('subBullets');
                       if (bullets) bullets.style.display = 'block';
                       const freqBullet = document.getElementById('subBulletFrequency');
-                      if (freqBullet) freqBullet.textContent = `You will receive an order every ${this.dataset.plan}`;
+                      if (freqBullet) {
+                        const freqText = this.dataset.plan === 'monthly' ? 'month' : `${this.dataset.plan.replace('months', ' months')}`;
+                        freqBullet.textContent = `You will receive an order every ${freqText}`;
+                      }
                     });
                   });
                 }
@@ -1191,7 +1147,7 @@
                 setTimeout(() => {
                   if (typeof window.subscriptionProductUpdated === 'undefined') {
                     const script = document.createElement('script');
-                    script.src = '{{ "subscription-product-updated.js" | asset_url }}';
+                    script.src = '{{ "subscription-product-mandate.js" | asset_url }}';
                     script.onload = function() {
                       console.log('Subscription mandate script loaded');
                       // Manually initialize since DOMContentLoaded might have already fired
@@ -1781,7 +1737,7 @@
     assign what_should_i_get_url   = block_st.what_should_i_get_url   | default: '#'
     assign box_contains_label      = block_st.box_contains_label      | default: 'Your box contains'
     assign pads_label              = block_st.pads_label              | default: 'pads'
-    assign accent                  = block_st.accent_color            | default: '#c0392b'
+    assign accent                  = block_st.accent_color            | default: '#E93F7F'
     assign footer_bg               = block_st.footer_bg_color         | default: '#f0ebe3'
     assign footer_ok               = block_st.footer_ok_color         | default: '#d4edda'
     assign tier_bg                 = block_st.tier_bg                 | default: '#ffffff'
@@ -4253,7 +4209,7 @@
       "type": "color",
       "id": "accent_color",
       "label": "Accent Color",
-      "default": "#c0392b"
+      "default": "#E93F7F"
     },
     {
       "type": "color",

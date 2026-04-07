@@ -1287,6 +1287,7 @@ html {
 @media (min-width: 769px) {
   .button-group {
     flex-wrap: nowrap;
+    grid-template-columns: repeat(3, 1fr) !important;
   }
   
   .button {
@@ -1298,8 +1299,8 @@ html {
 /* Mobile: 2 buttons in one line, 1 button full width below */
 @media (max-width: 768px) {
   .button-group {
-    flex-direction: column;
     gap: 8px;
+    grid-template-columns: repeat(3, 2fr);
   }
   
   .button-group .button:nth-child(1),
@@ -1329,6 +1330,7 @@ html {
   display: inline-flex;
   align-items: center;
   gap: 6px;
+  justify-content: center;
 }
 
 .button-primary {
@@ -1393,7 +1395,7 @@ html {
   }
   
   .key-info {
-    grid-template-columns: 1fr;
+    grid-template-columns: 1fr 1fr;
     gap: 12px;
   }
   
@@ -1480,10 +1482,6 @@ body {
     margin-top: 16px;
   }
   
-  
-  .button-group {
-    flex-direction: column;
-  }
   
   .subscription-card {
     padding: 20px;
